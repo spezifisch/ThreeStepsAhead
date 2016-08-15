@@ -3,7 +3,7 @@
 This is an Android App which simulates your location, speed, bearing.
 It's future goal is to simulate the whole bunch of GPS/GNSS data that the Android API delivers accurately.
 
-# Main App
+## Main App
 
 The main app is currently just a location picker which also starts the joystick overlay service.
 
@@ -11,7 +11,7 @@ On the map you can pick your start location. From there you can go to other apps
 
 ![](screenshots/v0.1-tsa.png)
 
-# Simulate Location in other Apps
+## Simulate Location in other Apps
 
 Here are screenshots from [SatStat](https://github.com/mvglasow/satstat) with faked location and the joystick overlay, which lets you move around in the map.
 
@@ -24,13 +24,13 @@ Speed and bearing are simulated according to your joystick.
 
 ![](screenshots/v0.1-satstat2.png)
 
-# Features
+## Features
 
 - simulate latitude, longitude, bearing, speed
 - use altitude, accuracy, TTF from real GPS receiver
 - display floating joystick overlay above other apps
 
-# TODO
+## TODO
 
 This is *work in progress* and not really neat.
 
@@ -42,11 +42,11 @@ This is *work in progress* and not really neat.
 - simulate altitude (we need another data source for that)
 - simulate accuracy (we need heuristics from real GPS data for that)
 
-# Dependencies
+## Dependencies
 
 - [Xposed Framework](http://forum.xda-developers.com/showthread.php?t=3034811)
 
-# Credits
+## Credits
 
 - Marker and App icons made by [Roundicons Freebies](http://www.flaticon.com/authors/roundicons-freebies)
 - GPS Hooking Code based on: [xposed-gps](https://github.com/hilarycheng/xposed-gps)
