@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <com.jmedeisis.bugstick.Joystick
+        android:id="@+id/joystick"
+        android:layout_width="@dimen/base_size"
+        android:layout_height="@dimen/base_size"
+        android:background="@color/bg_base">
+
+        <!-- You may use any View here. -->
+        <Button
+            android:layout_width="@dimen/stick_size"
+            android:layout_height="@dimen/stick_size"
+            android:background="@color/bg_stick" />
+
+    </com.jmedeisis.bugstick.Joystick>
+
+    <TextView
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:id="@+id/speed_rot"
+        android:background="@color/bg_hud"
+        android:typeface="monospace"
+        android:text="ROT"
+        android:textAlignment="textEnd" />
+
+    <TextView
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:id="@+id/speed_trans"
+        android:background="@color/bg_hud"
+        android:typeface="monospace"
+        android:text="TRANS"
+        android:textAlignment="textEnd" />
+</LinearLayout>
