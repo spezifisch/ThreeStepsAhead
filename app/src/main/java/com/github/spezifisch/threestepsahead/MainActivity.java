@@ -1,17 +1,15 @@
 package com.github.spezifisch.threestepsahead;
 
-import android.content.ComponentName;
 import android.content.Intent;
-import android.content.ServiceConnection;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.os.Bundle;
-import android.os.IBinder;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -24,8 +22,9 @@ import org.osmdroid.views.overlay.OverlayItem;
 
 import java.util.LinkedList;
 
-public class MainActivity extends AppCompatActivity implements ServiceConnection {
-    private Settings settings = null;
+public class MainActivity extends AppCompatActivity
+        implements IPC.LocationUpdateListener, IPC.StateUpdateListener {
+    static final String TAG = "MainActivity";
 
     private MapViewLoc map;
     private IMapController mapController;
@@ -36,17 +35,32 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
     private FloatingActionButton fab;
 
-    private JoystickService joystickService;
+    // IPC to JoystickService
+    private SettingsStorage settingsStorage;
+    private IPC.SettingsClient settings = new IPC.SettingsClient();
+    private IPC.Client serviceClient = new IPC.Client(settings);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // start joystick overlay
+        startService(new Intent(this, JoystickService.class));
+
+        // settings
+        settingsStorage = new SettingsStorage(getApplicationContext());
+        settings.setSettingsStorage(settingsStorage);
+
+        // start IPC
+        serviceClient.connect(getApplicationContext());
+        settings.setTagSuffix("MainActivity");
+        settings.setClient(serviceClient);
+        settings.setOnLocationUpdateListener(this);
+        settings.setOnStateUpdateListener(this);
+
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
-        settings = new Settings(getApplicationContext());
 
         // OSM map
         map = (MapViewLoc) findViewById(R.id.map);
@@ -65,7 +79,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         map.getOverlays().add(markersOverlay);
 
         // marker location from settings
-        NootLocation loc = settings.getLocation();
+        Location loc = settings.getLocation();
         updateMarker(loc, true);
 
         // click handler
@@ -82,7 +96,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                 .setAction("Action", null).show();
 
                 // write to settings for GPSMan
-                settings.updateLocation(location);
+                settings.sendLocation(location);
 
                 updateMarker(location, false);
             }
@@ -94,9 +108,9 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                boolean state = !settings.isStarted();
-                settings.updateState(state);
-                updateState();
+                boolean state = !settings.isEnabled();
+                settings.sendState(state);
+                updateState(state);
 
                 String sstate = state ? "on" : "off";
 
@@ -104,10 +118,16 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                         .setAction("Action", null).show();
             }
         });
-        updateState();
+        updateState(settings.isEnabled());
 
-        // start joystick overlay
-        startService(new Intent(this, JoystickService.class));
+        // warning if Xposed hook failed
+        if (!settings.isXposedLoaded()) {
+            Log.e(TAG, "Xposed failed!");
+
+            Snackbar.make(findViewById(R.id.map),
+                    "Xposed Hooks not found! Did you restart yet?", Snackbar.LENGTH_INDEFINITE)
+                    .setAction("Action", null).show();
+        }
     }
 
     @Override
@@ -132,6 +152,22 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         return super.onOptionsItemSelected(item);
     }
 
+    @Override
+    public void OnLocationUpdate(Location loc) {
+        Log.d(TAG, "got location update:" + loc);
+        updateMarker(loc, true);
+
+        // TODO throttle
+        settings.saveSettings();
+    }
+
+    @Override
+    public void OnStateUpdate() {
+        updateState(settings.isEnabled());
+
+        settings.saveSettings();
+    }
+
     private void updateMarker(GeoPoint pt, boolean center) {
         final String markerTitle = "Fake Location", markerDescription = "You seem to be here.";
 
@@ -152,13 +188,6 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         }
     }
 
-    private void updateMarker(NootLocation loc, boolean center) {
-        int lat = (int) (loc.getLatitude() * 1E6);
-        int lng = (int) (loc.getLongitude() * 1E6);
-        GeoPoint point = new GeoPoint(lat, lng);
-        updateMarker(point, center);
-    }
-
     private void updateMarker(Location loc, boolean center) {
         int lat = (int) (loc.getLatitude() * 1E6);
         int lng = (int) (loc.getLongitude() * 1E6);
@@ -166,28 +195,13 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         updateMarker(point, center);
     }
 
-    private void updateState() {
+    private void updateState(boolean enabled) {
         int id;
-        if (settings.isStarted()) {
+        if (enabled) {
             id = getResources().getIdentifier("@android:drawable/ic_media_play", null, null);
         } else {
             id = getResources().getIdentifier("@android:drawable/ic_media_pause", null, null);
         }
         fab.setImageResource(id);
-    }
-
-    @Override
-    public void onServiceConnected(ComponentName name, IBinder service) {
-        joystickService = ((JoystickService.JoystickServiceBinder) service).getService();
-
-        if (joystickService != null) {
-            unbindService(this);
-            joystickService.stopSelf();
-        }
-    }
-
-    @Override
-    public void onServiceDisconnected(ComponentName name) {
-        joystickService = null;
     }
 }

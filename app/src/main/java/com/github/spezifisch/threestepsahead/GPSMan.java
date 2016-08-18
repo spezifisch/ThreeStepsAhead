@@ -26,9 +26,14 @@ public class GPSMan implements IXposedHookLoadPackage {
             "com.nianticlabs.pokemongo"
     );
 
-    private NootLocation nootlocation;
+    // IPC to JoystickService
+    private SettingsStorage settingsStorage;
+    private IPC.SettingsClient settings;
+    private IPC.Client serviceClient;
+
+    private Location location;
     private Random rand;
-    private static Settings settings = new Settings();
+    private boolean simulateNoise = false;
 
     @Override
     public void handleLoadPackage(LoadPackageParam lpparam) throws Throwable {
@@ -36,7 +41,7 @@ public class GPSMan implements IXposedHookLoadPackage {
             XposedBridge.log(THIS_APP + " app loaded");
 
             // for the main app to know xposed is running
-            Class<?> clazz = XposedHelpers.findClass(THIS_APP + ".Settings", lpparam.classLoader);
+            Class<?> clazz = XposedHelpers.findClass(THIS_APP + ".SettingsStorage", lpparam.classLoader);
             XposedHelpers.setStaticBooleanField(clazz, "xposed_loaded", true);
         } else if (isHookedApp(lpparam.packageName)) {
             XposedBridge.log(lpparam.packageName + " app loaded -> initing");
@@ -45,9 +50,22 @@ public class GPSMan implements IXposedHookLoadPackage {
             // init random
             rand = new Random(System.currentTimeMillis() + 234213370);
 
+            // file settings
+            settingsStorage = new SettingsStorage();
+
+            // IPC instance
+            settings = new IPC.SettingsClient();
+            settings.setTagSuffix("GPSMan");
+            settings.setInXposed(true);
+            settings.setSettingsStorage(settingsStorage);
+
+            // pair Service and Client
+            serviceClient = new IPC.Client(settings);
+            serviceClient.setInXposed(true);
+            settings.setClient(serviceClient);
+
             // init location
-            settings.reload();
-            if (nootlocation == null) {
+            if (location == null) {
                 updateLocation();
             }
 
@@ -68,8 +86,10 @@ public class GPSMan implements IXposedHookLoadPackage {
 
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                settings.reload();
-                if (!settings.isStarted() || param.hasThrowable()) {
+                if (param.hasThrowable()) {
+                    return;
+                }
+                if (!serviceClient.connect() || !settings.isEnabled()) {
                     return;
                 }
 
@@ -81,7 +101,7 @@ public class GPSMan implements IXposedHookLoadPackage {
                     updateLocation();
 
                     // overwrite given location
-                    message.obj = getFakedLocation((Location)message.obj);;
+                    message.obj = fakeLocation((Location)message.obj);;
                     param.args[0] = message;
 
                     XposedBridge.log("ListenerTransport Location faked: " + message.obj);
@@ -100,13 +120,16 @@ public class GPSMan implements IXposedHookLoadPackage {
 
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                settings.reload();
-                if (!settings.isStarted() || param.hasThrowable()) {
+                if (param.hasThrowable()) {
+                    return;
+                }
+                if (!serviceClient.connect() || !settings.isEnabled()) {
                     return;
                 }
 
                 GpsStatus gpsStatus = (GpsStatus) param.getResult();
 
+                // find method setStatus
                 Method[] declaredMethods = GpsStatus.class.getDeclaredMethods();
                 for (Method method: declaredMethods) {
 			// TODO
@@ -122,13 +145,15 @@ public class GPSMan implements IXposedHookLoadPackage {
         class LastKnownLocationHook extends XC_MethodHook {
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                settings.reload();
-                if (!settings.isStarted() || param.hasThrowable()) {
+                if (param.hasThrowable()) {
+                    return;
+                }
+                if (!serviceClient.connect() || !settings.isEnabled()) {
                     return;
                 }
 
                 if (param.args[0] != null) { // provider enabled + location returned
-                    Location location = getFakedLocation((Location)param.args[0]);
+                    Location location = fakeLocation((Location)param.args[0]);
                     param.setResult(location);
 
                     XposedBridge.log("getLastKnownLocation Location faked: " + location);
@@ -142,26 +167,28 @@ public class GPSMan implements IXposedHookLoadPackage {
 
     private void updateLocation() {
         // get current fake location
-        nootlocation = settings.getLocation();
+        location = settings.getLocation();
 
         // add gaussian noise with given sigma
-        nootlocation.setBearing((float)(nootlocation.getBearing() + rand.nextGaussian()*2.0));      // 2 deg
-        nootlocation.setSpeed((float)Math.abs(nootlocation.getSpeed() + rand.nextGaussian()*0.2));  // 0.2 m/s
-        double distance = rand.nextGaussian()*Math.max(5.0, nootlocation.getAccuracy())/3.0;        // 5 m or accuracy (getAccuracy looks rather than 3sigma)
-        double theta = Math.toRadians(rand.nextFloat() * 360.0);                                    // direction of displacement should be uniformly distributed
-        nootlocation.displace(distance, theta);
+        if (simulateNoise) {
+            location.setBearing((float) (location.getBearing() + rand.nextGaussian() * 2.0));      // 2 deg
+            location.setSpeed((float) Math.abs(location.getSpeed() + rand.nextGaussian() * 0.2));  // 0.2 m/s
+            double distance = rand.nextGaussian() * Math.max(5.0, location.getAccuracy()) / 3.0;        // 5 m or accuracy (getAccuracy looks rather than 3sigma)
+            double theta = Math.toRadians(rand.nextFloat() * 360.0);                                    // direction of displacement should be uniformly distributed
+            location = LocationHelper.displace(location, distance, theta);
+        }
     }
 
-    private Location getFakedLocation(Location location) {
+    private Location fakeLocation(Location loc) {
         // overwrite faked parts of Location
-        location.setLatitude(nootlocation.getLatitude());
-        location.setLongitude(nootlocation.getLongitude());
+        loc.setLatitude(location.getLatitude());
+        loc.setLongitude(location.getLongitude());
         //location.setTime(System.currentTimeMillis());
-        location.setAltitude(nootlocation.getAltitude());
-        location.setSpeed(nootlocation.getSpeed());
-        //location.setAccuracy(nootlocation.getAccuracy());
-        location.setBearing(nootlocation.getBearing());
+        loc.setAltitude(location.getAltitude());
+        loc.setSpeed(location.getSpeed());
+        //loc.setAccuracy(location.getAccuracy());
+        loc.setBearing(location.getBearing());
 
-        return location;
+        return loc;
     }
 }

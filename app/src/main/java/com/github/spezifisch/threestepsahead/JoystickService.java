@@ -4,11 +4,10 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.PixelFormat;
-import android.os.Binder;
+import android.location.Location;
+import android.os.Bundle;
 import android.os.IBinder;
-import android.os.Message;
 import android.os.Messenger;
-import android.os.Handler;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Gravity;
@@ -20,19 +19,29 @@ import android.widget.TextView;
 import com.jmedeisis.bugstick.Joystick;
 import com.jmedeisis.bugstick.JoystickListener;
 
-import java.lang.ref.WeakReference;
-
 public class JoystickService extends Service {
     static final String TAG = "JoystickService";
-
-    static final int MSG_REGISTER_CLIENT = 1;
-    static final int MSG_SAVE_DATA = 2;
-    static final int MSG_LOAD_DATA = 3;
 
     protected WindowManager windowManager;
     protected LinearLayout joystickView;
 
     protected TextView textSpeedTrans, textSpeedRot;
+
+    // IPC interface
+    private SettingsStorage settingsStorage;
+    private IPC.SettingsClient settings = new IPC.SettingsClient();
+    final Messenger messenger = new Messenger(settings);
+    private IPC.Client serviceClient = new IPC.Client(settings);
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return messenger.getBinder();
+    }
+
+    public JoystickService() {
+        super();
+        settings.setTagSuffix(TAG);
+    }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -70,6 +79,18 @@ public class JoystickService extends Service {
         Joystick joystick = (Joystick)joystickView.findViewById(R.id.joystick);
         joystick.setJoystickListener(new MyJsListener());
 
+        // file backend
+        settingsStorage = new SettingsStorage(getApplicationContext());
+        // load settings from file
+        settings.setSettingsStorage(settingsStorage);
+
+        // connect to myself
+        serviceClient.connect(getApplicationContext());
+        // listen to myself
+        settings.setClient(serviceClient);
+        // relay msgs to clients
+        settings.setMaster(true);
+
         return START_REDELIVER_INTENT;
     }
 
@@ -88,12 +109,8 @@ public class JoystickService extends Service {
         private final String speedRotString = getString(R.string.speed_rot_value);
         private final String speedTransString = getString(R.string.speed_trans_value);
 
-        private Settings settings;
 
         public RunningMan() {
-            settings = new Settings(getApplicationContext());
-
-            settings.reload();
             stop();
         }
 
@@ -106,10 +123,8 @@ public class JoystickService extends Service {
             textSpeedTrans.setText(String.format(speedTransString, speed_trans));
             textSpeedRot.setText(String.format(speedRotString, Math.toDegrees(speed_rot)));
 
-            // update location in shared settings ...
-            settings.reload();
             // get previous location
-            NootLocation loc = settings.getLocation();
+            Location loc = settings.getLocation();
 
             // see how much time elapsed
             long now = System.currentTimeMillis();
@@ -132,11 +147,11 @@ public class JoystickService extends Service {
             dist = Math.min(100.0, dist);
 
             // update location
-            loc.displace(dist, yaw);
+            loc = LocationHelper.displace(loc, dist, yaw);
             loc.setBearing((float)Math.toDegrees(yaw));
             loc.setSpeed((float)Math.abs(speed_trans)); // only pos. speed? maybe.
             loc.setTime(now);
-            settings.updateLocation(loc);
+            settings.sendLocation(loc);
 
             Log.d(TAG, "tdiff " + tdiff + " yaw " + yaw + " dist " + dist + " time " + now + " new location: " + loc);
         }
@@ -176,42 +191,6 @@ public class JoystickService extends Service {
         public void onUp() {
             // stop movement
             runman.stop();
-        }
-    }
-
-    @Override
-    public IBinder onBind(Intent intent) {
-        return mMessenger.getBinder();
-    }
-
-    final Messenger mMessenger = new Messenger(new IncomingHandler());
-
-    static class IncomingHandler extends Handler { // Handler of incoming messages from clients.
-        @Override
-        public void handleMessage(Message msg) {
-            Log.e(TAG, "js binder msg " + msg);
-            switch (msg.what) {
-                case MSG_REGISTER_CLIENT:
-                    break;
-                case MSG_SAVE_DATA:
-                    break;
-                case MSG_LOAD_DATA:
-                    break;
-                default:
-                    super.handleMessage(msg);
-            }
-        }
-    }
-
-    public static class JoystickServiceBinder extends Binder {
-        private final WeakReference<JoystickService> mService;
-
-        JoystickServiceBinder(JoystickService service) {
-            mService = new WeakReference<>(service);
-        }
-
-        public JoystickService getService() {
-            return mService.get();
         }
     }
 }

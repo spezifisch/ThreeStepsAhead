@@ -21,7 +21,7 @@
 
         <service
             android:name="com.github.spezifisch.threestepsahead.JoystickService"
-            android:exported="false"/>
+            android:exported="true"/>
 
         <meta-data
             android:name="xposedmodule"
@@ -43,6 +43,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
     </application>
 
 </manifest>

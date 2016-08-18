@@ -27,14 +27,15 @@ Speed and bearing are simulated according to your joystick.
 ## Features
 
 - simulate latitude, longitude, bearing, speed
+- choose coarse location in map, move around using joystick
 - use altitude, accuracy, TTF from real GPS receiver
 - display floating joystick overlay above other apps
+- location updates via IPC (no abuse of SharedPreferences)
 
 ## TODO
 
-This is *work in progress* and not really neat.
+This is *work in progress*.
 
-- better communication between joystick service and location backend
 - disable/enable joystick
 - choose hooked Apps
 - simulate [GPS satellite status](https://developer.android.com/reference/android/location/GpsSatellite.html)
@@ -51,4 +52,3 @@ This is *work in progress* and not really neat.
 - Marker icon made by [freepik](http://www.flaticon.com/authors/freepik) from www.flaticon.com
 - Settings Code based on: [xposed-gps](https://github.com/hilarycheng/xposed-gps)
 - Map: [OSMDroid](https://github.com/osmdroid/osmdroid), default tiles: [OpenCycleMap](http://www.opencyclemap.org/)
-
