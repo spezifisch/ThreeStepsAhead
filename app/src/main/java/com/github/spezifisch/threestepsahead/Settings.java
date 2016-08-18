@@ -9,6 +9,7 @@ import de.robv.android.xposed.XSharedPreferences;
 import de.robv.android.xposed.XposedBridge;
 
 public class Settings {
+    public static boolean xposed_loaded = false;
 
     private Context context = null;
     private XSharedPreferences xSharedPreferences = null;
@@ -24,6 +25,10 @@ public class Settings {
     public Settings(Context context) {
         sharedPreferences = context.getSharedPreferences("gps", Context.MODE_WORLD_READABLE);
         this.context = context;
+    }
+
+    public boolean isXposedLoaded() {
+        return xposed_loaded;
     }
 
     public double getFloat(String key) {

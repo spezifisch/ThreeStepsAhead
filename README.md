@@ -34,7 +34,6 @@ Speed and bearing are simulated according to your joystick.
 
 This is *work in progress* and not really neat.
 
-- clean up Xposed hooking code (maybe don't hook the whole Location object?)
 - better communication between joystick service and location backend
 - disable/enable joystick
 - choose hooked Apps
@@ -48,6 +47,8 @@ This is *work in progress* and not really neat.
 
 ## Credits
 
-- Marker and App icons made by [Roundicons Freebies](http://www.flaticon.com/authors/roundicons-freebies)
-- GPS Hooking Code based on: [xposed-gps](https://github.com/hilarycheng/xposed-gps)
+- App icon made by [Roundicons Freebies](http://www.flaticon.com/authors/roundicons-freebies) ([CC-BY](https://creativecommons.org/licenses/by/3.0/), background added)
+- Marker icon made by [freepik](http://www.flaticon.com/authors/freepik) from www.flaticon.com
+- Settings Code based on: [xposed-gps](https://github.com/hilarycheng/xposed-gps)
 - Map: [OSMDroid](https://github.com/osmdroid/osmdroid), default tiles: [OpenCycleMap](http://www.opencyclemap.org/)
+
