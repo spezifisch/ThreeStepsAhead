@@ -5,7 +5,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.PixelFormat;
 import android.location.Location;
-import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Messenger;
 import android.util.DisplayMetrics;
@@ -90,6 +89,10 @@ public class JoystickService extends Service {
         settings.setClient(serviceClient);
         // relay msgs to clients
         settings.setMaster(true);
+
+        // TODO use dynamic update
+        String tles = SpaceMan.readTest1(getApplicationContext());
+        settings.setTLE(tles);
 
         return START_REDELIVER_INTENT;
     }

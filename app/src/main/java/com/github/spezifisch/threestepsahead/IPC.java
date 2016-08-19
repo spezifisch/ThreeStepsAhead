@@ -23,11 +23,21 @@ public class IPC {
     private static final String THIS_APP = "com.github.spezifisch.threestepsahead";
 
     static public class msg {
+        // internal
         static final int CONNECTED = 1;
-        static final int SET_POS = 2;
-        static final int SET_STATE = 3;
+
+        // setter
+        static final int SETTER = 100; // invalid
+        static final int SET_POS = 101;
+        static final int SET_STATE = 102;
+        static final int SET_TLE = 103;
+
+        // getter
+        static final int GETTER = 200; // invalid
+        static final int GET_TLE = 201;
     }
 
+    // TODO combine Client and SettingsClient?
     static public class Client implements ServiceConnection {
         private boolean inXposed = false;
         private boolean connected = false;
@@ -123,6 +133,10 @@ public class IPC {
         void OnStateUpdate();
     }
 
+    public interface TLEUpdateListener {
+        void OnTLEUpdate();
+    }
+
     static public class SettingsClient extends Handler {
         private String BASE_TAG = "SettingsClient", TAG = BASE_TAG;
         private boolean inXposed = false;
@@ -137,6 +151,7 @@ public class IPC {
         // callbacks for user class
         protected LocationUpdateListener locationUpdateListener;
         protected StateUpdateListener stateUpdateListener;
+        protected TLEUpdateListener tleUpdateListener;
 
         // settings file storage
         protected SettingsStorage settingsStorage;
@@ -144,6 +159,7 @@ public class IPC {
         // settings
         private Location loc;
         private boolean enabled;
+        private String tle = "";
 
         public SettingsClient() {
             loc = new Location("");
@@ -208,6 +224,10 @@ public class IPC {
             stateUpdateListener = sul;
         }
 
+        public void setOnTLEUpdateListener(TLEUpdateListener tul) {
+            tleUpdateListener = tul;
+        }
+
         // settings
         public Location getLocation() {
             return loc;
@@ -215,6 +235,14 @@ public class IPC {
 
         public boolean isEnabled() {
             return enabled;
+        }
+
+        public void setTLE(String t) {
+            tle = t;
+        }
+
+        public String getTLE() {
+            return tle;
         }
 
         // IPC receiver
@@ -226,8 +254,8 @@ public class IPC {
                 boolean self_message = false;
 
                 if (bundle != null) {
-                    // relay to clients
-                    if (isMaster && message.what != msg.CONNECTED) {
+                    // relay SET messages to clients
+                    if (isMaster && message.what > msg.SETTER && message.what < msg.GETTER) {
                         for (Messenger c : clients) {
                             if (c == client.getMessenger()) {
                                 // it's me
@@ -287,6 +315,26 @@ public class IPC {
                         }
                         break;
 
+                    case msg.SET_TLE:
+                        log("got TLE update");
+                        if (bundle == null) {
+                            return;
+                        }
+                        tle = bundle.getString("tle", "");
+
+                        // call back
+                        if (tleUpdateListener != null && !self_message) {
+                            tleUpdateListener.OnTLEUpdate();
+                        }
+                        break;
+
+                    case msg.GET_TLE:
+                        if (isMaster) {
+                            log("master responding to GET_TLE");
+                            sendTLE(message.replyTo);
+                        }
+                        break;
+
                     default:
                         super.handleMessage(message);
                 }
@@ -342,6 +390,28 @@ public class IPC {
             message.setData(bundle);
 
             log("sendState: " + enabled);
+            return send(message);
+        }
+
+        public boolean sendTLE(Messenger m) {
+            Message message = Message.obtain(null, msg.SET_TLE);
+            Bundle bundle = new Bundle();
+            bundle.putString("source", TAG);
+            bundle.putString("tle", tle);
+            message.setData(bundle);
+
+            log("sendTLE: ...");
+            return send(m, message);
+        }
+
+        public boolean requestTLE() {
+            Message message = Message.obtain(null, msg.GET_TLE);
+            Bundle bundle = new Bundle();
+            bundle.putString("source", TAG);
+            message.setData(bundle);
+            message.replyTo = client.getMessenger();
+
+            log("requestTLE: ...");
             return send(message);
         }
     }

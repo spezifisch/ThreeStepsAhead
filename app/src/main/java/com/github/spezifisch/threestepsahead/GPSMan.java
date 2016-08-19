@@ -1,8 +1,10 @@
 package com.github.spezifisch.threestepsahead;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
 
+import android.app.AndroidAppHelper;
 import android.location.GpsStatus;
 import android.location.Location;
 import android.os.Message;
@@ -34,6 +36,9 @@ public class GPSMan implements IXposedHookLoadPackage {
     private Location location;
     private Random rand;
     private boolean simulateNoise = false;
+
+    // GPS satellite calculator
+    private SpaceMan spaceMan;
 
     @Override
     public void handleLoadPackage(LoadPackageParam lpparam) throws Throwable {
@@ -127,12 +132,90 @@ public class GPSMan implements IXposedHookLoadPackage {
                     return;
                 }
 
+                // initialize gps calc
+                if (spaceMan == null) {
+                    spaceMan = new SpaceMan();
+                    spaceMan.inXposed = true;
+                }
+
+                // update TLE
+                if (serviceClient.isConnected() && spaceMan.getTLECount() == 0) { // TODO when too old
+                    settings.requestTLE(); // async, getTLE probably takes a bit
+                    spaceMan.parseTLE(settings.getTLE());
+                }
+
+                // calculate satellite positions for current location and time
+                spaceMan.setNow();
+                spaceMan.setGroundStationPosition(location);
+                spaceMan.calculatePositions();
+
+                spaceMan.dumpSatelliteInfo();
+                spaceMan.dumpGpsSatellites();
+
+                // get satellites in view
+                ArrayList<SpaceMan.MyGpsSatellite> mygps = spaceMan.getGpsSatellites();
+
                 GpsStatus gpsStatus = (GpsStatus) param.getResult();
 
-                // find method setStatus
+                // use internal method setStatus to overwrite satellite info
                 Method[] declaredMethods = GpsStatus.class.getDeclaredMethods();
                 for (Method method: declaredMethods) {
-			// TODO
+                    if (method.getName().equals("setStatus") && method.getParameterTypes().length >= 8) {
+                        // setStatus(int svCount, int[] prns, float[] snrs, float[] elevations, float[] azimuths,
+                        //           int ephemerisMask, int almanacMask, int usedInFixMask)
+
+                        // put data from my gps sats in these great arrays
+                        int svCount = mygps.size();
+                        int[] prns = new int[svCount];
+                        float[] snrs = new float[svCount];
+                        float[] elevations = new float[svCount];
+                        float[] azimuths = new float[svCount];
+                        int ephemerisMask = 0;
+                        int almanacMask = 0;
+                        int usedInFixMask = 0;
+
+                        int i = 0;
+                        for (SpaceMan.MyGpsSatellite gs: mygps) {
+                            prns[i] = gs.prn;
+                            if (simulateNoise) {
+                                snrs[i] = Math.round(gs.snr + rand.nextGaussian()*10.0f);
+                            } else {
+                                snrs[i] = gs.snr;
+                            }
+                            // these should be known exactly(?)
+                            elevations[i] = gs.elevation;
+                            azimuths[i] = gs.azimuth;
+
+                            int prnShift = (1 << (gs.prn - 1));
+                            if (gs.hasEphemeris) {
+                                ephemerisMask |= prnShift;
+                            }
+                            if (gs.hasAlmanac) {
+                                almanacMask |= prnShift;
+                            }
+                            if (gs.usedInFix) {
+                                if (!simulateNoise || rand.nextFloat() > 0.92f) { // 8% drop
+                                    usedInFixMask |= prnShift;
+                                }
+                            }
+
+                            i++;
+                        }
+
+                        // call private setStatus method to apply these values
+                        try {
+                            method.setAccessible(true);
+                            method.invoke(gpsStatus, svCount, prns, snrs, elevations, azimuths, ephemerisMask, almanacMask, usedInFixMask);
+                            method.setAccessible(false);
+                            param.setResult(gpsStatus);
+
+                            XposedBridge.log("GpsStatus faked: " + gpsStatus);
+                        } catch (Throwable e) {
+                            XposedBridge.log(e);
+                        }
+
+                        break;
+                    }
                 }
             }
         }
@@ -184,7 +267,7 @@ public class GPSMan implements IXposedHookLoadPackage {
         loc.setLatitude(location.getLatitude());
         loc.setLongitude(location.getLongitude());
         //location.setTime(System.currentTimeMillis());
-        loc.setAltitude(location.getAltitude());
+        //loc.setAltitude(location.getAltitude());
         loc.setSpeed(location.getSpeed());
         //loc.setAccuracy(location.getAccuracy());
         loc.setBearing(location.getBearing());

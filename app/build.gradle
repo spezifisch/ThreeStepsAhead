@@ -8,8 +8,8 @@ android {
         applicationId "com.github.spezifisch.threestepsahead"
         minSdkVersion 21
         targetSdkVersion 22
-        versionCode 1
-        versionName "0.1"
+        versionCode 3
+        versionName "0.3"
     }
     buildTypes {
         release {
@@ -23,6 +23,7 @@ repositories {
     maven {
         url "https://jitpack.io"
     }
+    mavenCentral()
 }
 
 dependencies {
@@ -33,4 +34,5 @@ dependencies {
     compile 'org.osmdroid:osmdroid-android:5.2@aar'
     provided 'de.robv.android.xposed:api:82'
     compile 'com.jmedeisis:bugstick:0.2.2'
+    compile 'uk.me.g4dpz:predict4java:1.1.3'
 }
