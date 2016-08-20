@@ -47,11 +47,11 @@ public class MainActivity extends AppCompatActivity
         setContentView(R.layout.activity_main);
 
         settingsStorage = new SettingsStorage(getApplicationContext());
-        if (!settingsStorage.xposedTest(getApplicationContext())) {
+        /*if (!settingsStorage.xposedTest(getApplicationContext())) {
             Log.e(TAG, "xposed not found, bye");
             finish();
             return;
-        }
+        }*/
 
         // start joystick overlay
         startService(new Intent(this, JoystickService.class));

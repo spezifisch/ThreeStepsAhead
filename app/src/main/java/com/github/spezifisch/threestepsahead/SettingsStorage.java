@@ -41,6 +41,10 @@ public class SettingsStorage {
         return xposed_loaded;
     }
 
+    public boolean isXposed() {
+        return xSharedPreferences != null;
+    }
+
     public double getFloat(String key) {
         if (sharedPreferences != null)
             return sharedPreferences.getFloat(key, (float)0.0);
@@ -73,7 +77,9 @@ public class SettingsStorage {
             // update cached value
             cached_location.set(loc);
         } else {
-            XposedBridge.log("GetNumber failed, using cached location.");
+            if (isXposed()) {
+                XposedBridge.log("GetNumber failed, using cached location.");
+            }
             loc.set(cached_location);
         }
 
