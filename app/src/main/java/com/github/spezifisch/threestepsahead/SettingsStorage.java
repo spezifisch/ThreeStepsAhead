@@ -1,9 +1,11 @@
 package com.github.spezifisch.threestepsahead;
 // based on: https://github.com/hilarycheng/xposed-gps/blob/master/src/com/diycircuits/gpsfake/Settings.java
 
+import android.app.AndroidAppHelper;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.location.Location;
+import android.widget.Toast;
 
 import de.robv.android.xposed.XSharedPreferences;
 import de.robv.android.xposed.XposedBridge;
@@ -23,6 +25,16 @@ public class SettingsStorage {
 
     public SettingsStorage(Context context) {
         sharedPreferences = context.getSharedPreferences("gps", Context.MODE_WORLD_READABLE);
+    }
+
+    public boolean xposedTest(Context context) {
+        try {
+            XposedBridge.log("SettingsStorage ok");
+            return true;
+        } catch (NoClassDefFoundError e) {
+            Toast.makeText(context, "Xposed not found! Did you install it?", Toast.LENGTH_LONG).show();
+            return false;
+        }
     }
 
     public boolean isXposedLoaded() {

@@ -45,7 +45,12 @@ This is *work in progress*.
 - disable/enable joystick
 - choose hooked Apps
 
-## Installation
+## Build
+
+- Simply build it with Android Studio
+- For `com.android.support:appcompat-v7` in Android Studio go to: Tools >> Android >> SDK Manager and select and install "Extras|Android Support Repository" ([Details](https://stackoverflow.com/a/20830540))
+
+## Install
 
 - Install [Xposed Framework](http://forum.xda-developers.com/showthread.php?t=3034811)
 - Install ThreeStepsAhead
