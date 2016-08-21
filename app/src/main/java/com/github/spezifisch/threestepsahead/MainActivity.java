@@ -12,7 +12,6 @@ import android.support.design.widget.Snackbar;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
-import android.support.v4.widget.TextViewCompat;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -26,7 +25,6 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.overlay.ItemizedIconOverlay;
 import org.osmdroid.views.overlay.OverlayItem;
-import org.w3c.dom.Text;
 
 import java.util.LinkedList;
 
@@ -47,6 +45,7 @@ public class MainActivity extends AppCompatActivity
     private SettingsStorage settingsStorage;
     private IPC.SettingsClient settings = new IPC.SettingsClient();
     private IPC.Client serviceClient = new IPC.Client(settings);
+    private long lastLocationUpdate = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -132,6 +131,13 @@ public class MainActivity extends AppCompatActivity
 
         // start/stop button
         updateState(settings.isEnabled());
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        Log.d(TAG, "onDestroy: bye");
+        settings.saveSettings();
     }
 
     @Override
@@ -222,14 +228,22 @@ public class MainActivity extends AppCompatActivity
         Log.d(TAG, "got location update:" + loc);
         updateMarker(loc, true);
 
-        // TODO throttle
-        settings.saveSettings();
+        // throttle settings updates
+        long now = System.currentTimeMillis();
+        long elapsed = now - lastLocationUpdate;
+        lastLocationUpdate = now;
+
+        if (elapsed > 60*1000) {
+            settings.saveSettings();
+        }
     }
 
     @Override
     public void OnStateUpdate() {
         updateState(settings.isEnabled());
 
+        // always update
+        lastLocationUpdate = System.currentTimeMillis();
         settings.saveSettings();
     }
 
