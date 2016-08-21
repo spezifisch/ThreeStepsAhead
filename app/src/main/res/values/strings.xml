@@ -1,7 +1,16 @@
 <resources>
-    <string name="app_name">ThreeStepsAhead</string>
-    <string name="action_settings">Settings</string>
+    <string name="app_name">Three Steps Ahead</string>
+    <string name="app_version">v0.3</string>
+
+    <string name="service_started">Service Running</string>
+    <string name="service_stopped">Service Stopped</string>
+    <string name="service_failed">Service Failed</string>
+    <string name="action_joystick">Toggle Joystick</string>
 
     <string name="speed_rot_value">%.0f °/s</string>
     <string name="speed_trans_value">%.1f m/s</string>
+    <string name="title_activity_main">MainActivity</string>
+
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
 </resources>

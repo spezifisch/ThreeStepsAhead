@@ -11,6 +11,7 @@ import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
+import android.view.View;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -20,6 +21,7 @@ import com.jmedeisis.bugstick.JoystickListener;
 
 public class JoystickService extends Service {
     static final String TAG = "JoystickService";
+    static private JoystickService me;
 
     protected WindowManager windowManager;
     protected LinearLayout joystickView;
@@ -39,7 +41,12 @@ public class JoystickService extends Service {
 
     public JoystickService() {
         super();
+        me = this;
         settings.setTagSuffix(TAG);
+    }
+
+    public static JoystickService get() {
+        return me;
     }
 
     @Override
@@ -79,7 +86,7 @@ public class JoystickService extends Service {
         joystick.setJoystickListener(new MyJsListener());
 
         // file backend
-        settingsStorage = new SettingsStorage(getApplicationContext());
+        settingsStorage = SettingsStorage.getSettingsStorage(getApplicationContext());
         // load settings from file
         settings.setSettingsStorage(settingsStorage);
 
@@ -89,6 +96,9 @@ public class JoystickService extends Service {
         settings.setClient(serviceClient);
         // relay msgs to clients
         settings.setMaster(true);
+
+        // show/hide joystick
+        showJoystick(settingsStorage.isJoystickEnabled());
 
         // TODO use dynamic update
         String tles = SpaceMan.readTest1(getApplicationContext());
@@ -194,6 +204,14 @@ public class JoystickService extends Service {
         public void onUp() {
             // stop movement
             runman.stop();
+        }
+    }
+
+    public void showJoystick(boolean show) {
+        if (show) {
+            joystickView.setVisibility(View.VISIBLE);
+        } else {
+            joystickView.setVisibility(View.GONE);
         }
     }
 }

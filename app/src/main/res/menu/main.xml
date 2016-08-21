@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_startstop"
+        android:orderInCategory="100"
+        android:title="@string/service_started"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_joystick"
+        android:orderInCategory="101"
+        android:title="@string/action_joystick"
+        app:showAsAction="ifRoom" />
+</menu>

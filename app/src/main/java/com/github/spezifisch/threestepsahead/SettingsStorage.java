@@ -1,71 +1,211 @@
-package com.github.spezifisch.threestepsahead;
-// based on: https://github.com/hilarycheng/xposed-gps/blob/master/src/com/diycircuits/gpsfake/Settings.java
+/**
+ * Based on MySettings.java from Untoasted
+ * Copyright 2014 Eric Gingell (c)
+ *
+ *     ButteredToast is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     ButteredToast is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with UnToasted.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
-import android.app.AndroidAppHelper;
+package com.github.spezifisch.threestepsahead;
+
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.location.Location;
-import android.widget.Toast;
 
 import de.robv.android.xposed.XSharedPreferences;
 import de.robv.android.xposed.XposedBridge;
 
+
 public class SettingsStorage {
+    static private final String THIS_APP = "com.github.spezifisch.threestepsahead", SETTINGS = "gps";
+
+    /** to be overwritten by Xposed init hook */
     public static boolean xposed_loaded = false;
 
+    /** Private properties. */
     private XSharedPreferences xSharedPreferences = null;
     private SharedPreferences sharedPreferences = null;
+    private Context mContext = null;
     private Location cached_location = new Location("gps");
     private static boolean cached_state = false;
 
-    public SettingsStorage() {
-        xSharedPreferences = new XSharedPreferences("com.github.spezifisch.threestepsahead", "gps");
-        xSharedPreferences.makeWorldReadable();
+    /** Factories. */
+    public static SettingsStorage getSettingsStorage() {
+        return new SettingsStorage(SETTINGS);
     }
 
-    public SettingsStorage(Context context) {
-        sharedPreferences = context.getSharedPreferences("gps", Context.MODE_WORLD_READABLE);
+    public static SettingsStorage getSettingsStorage(Context context) {
+        return new SettingsStorage(context, SETTINGS);
     }
 
-    public boolean xposedTest(Context context) {
+    /** Constructors. */
+    /**
+     * Make a new instance using XSharedPreferences.
+     * @param name - The file name to be read from.
+     */
+    public SettingsStorage(String name) {
         try {
-            XposedBridge.log("SettingsStorage ok");
-            return true;
-        } catch (NoClassDefFoundError e) {
-            Toast.makeText(context, "Xposed not found! Did you install it?", Toast.LENGTH_LONG).show();
-            return false;
+            xSharedPreferences = new XSharedPreferences(THIS_APP, name);
+            xSharedPreferences.makeWorldReadable();
+        } catch (Throwable e) {
+            XposedBridge.log(e);
         }
     }
+    /**
+     * Make a new instance using SharedPreferences.
+     * @param context - The app context from which to retrieve the SharedPreferences.
+     * @param name - The file name to read/write from.
+     */
+    @SuppressLint("WorldReadableFiles")
+    @SuppressWarnings("deprecation")
+    public SettingsStorage(Context context, String name) {
+        mContext = context;
+        sharedPreferences = mContext.getSharedPreferences(name, Context.MODE_WORLD_READABLE);
+    }
 
+    /** Public methods */
     public boolean isXposedLoaded() {
         return xposed_loaded;
     }
 
-    public boolean isXposed() {
-        return xSharedPreferences != null;
+    /**
+     * Used to add or change 'name' in the preference file.
+     * @param name - The property name.
+     * @param value - The value of said property.
+     * @throws Throwable - Thrown if attempting to write to the file when it's either open by XSharedPreferences or not open.
+     */
+    public void put(String name, String value) throws Throwable {
+        if (sharedPreferences == null) {
+            throw new Throwable("Readonly or unavailable");
+        }
+        sharedPreferences.edit().putString(name, value).apply();
+    }
+    /**
+     * Used to add or change 'name' in the preference file.
+     * @param name - The property name.
+     * @param value - The value of said property.
+     * @throws Throwable - Thrown if attempting to write to the file when it's either open by XSharedPreferences or not open.
+     */
+    public void put(String name, boolean value) throws Throwable {
+        if (sharedPreferences == null) {
+            throw new Throwable("Readonly or unavailable");
+        }
+        sharedPreferences.edit().putBoolean(name, value).apply();
+    }
+    /**
+     * Used to add or change 'name' in the preference file.
+     * @param name - The property name.
+     * @param value - The value of said property.
+     * @throws Throwable - Thrown if attempting to write to the file when it's either open by XSharedPreferences or not open.
+     */
+    public void put(String name, float value) throws Throwable {
+        if (sharedPreferences == null) {
+            throw new Throwable("Readonly or unavailable");
+        }
+        sharedPreferences.edit().putFloat(name, value).apply();
     }
 
-    public double getFloat(String key) {
-        if (sharedPreferences != null)
-            return sharedPreferences.getFloat(key, (float)0.0);
-        else if (xSharedPreferences != null)
-            return xSharedPreferences.getFloat(key, (float)0.0);
-        throw new RuntimeException("can't access value");
+    /**
+     * Used to get 'name' from the preference file.
+     * @param name - The property name.
+     * @param value - The value of said property.
+     * @throws Throwable - Thrown if neither XSharedPreferences nor SharedPreferences has the file open.
+     */
+    public String get(String name, String defValue) throws Throwable {
+        if (xSharedPreferences != null) {
+            return xSharedPreferences.getString(name, defValue);
+        } else if (sharedPreferences != null) {
+            return sharedPreferences.getString(name, defValue);
+        } else throw new Throwable("Can't get pref, " + name);
+    }
+
+    /**
+     * Used to get 'name' from the preference file.
+     * @param name - The property name.
+     * @param value - The value of said property.
+     * @throws Throwable - Thrown if neither XSharedPreferences nor SharedPreferences has the file open.
+     */
+    public boolean get(String name, boolean defValue) throws Throwable {
+        if (xSharedPreferences != null) {
+            return xSharedPreferences.getBoolean(name, defValue);
+        } else if (sharedPreferences != null) {
+            return sharedPreferences.getBoolean(name, defValue);
+        } else throw new Throwable("Can't get pref, " + name);
+    }
+
+    /**
+     * Used to get 'name' from the preference file.
+     * @param name - The property name.
+     * @param value - The value of said property.
+     * @throws Throwable - Thrown if neither XSharedPreferences nor SharedPreferences has the file open.
+     */
+    public float get(String name, float defValue) throws Throwable {
+        if (xSharedPreferences != null) {
+            return xSharedPreferences.getFloat(name, defValue);
+        } else if (sharedPreferences != null) {
+            return sharedPreferences.getFloat(name, defValue);
+        } else throw new Throwable("Can't get pref, " + name);
+    }
+
+    public boolean safeGet(String key, boolean def) {
+        try {
+            return get(key, def);
+        } catch (Throwable e) {
+            return def;
+        }
+    }
+
+    /**
+     * Use to get the XSharedPreferences stored in this instance.
+     * @return XSharedPreferences xSharedPreferences
+     */
+    public XSharedPreferences get() {
+        return xSharedPreferences;
+    }
+    /**
+     * Use to get the SharedPreferences stored in this instance.
+     * @param context - only used to disambiguate SharedPreferences from XSharedPreferences
+     * @return SharedPreferences sharedPreferences
+     */
+    public SharedPreferences get(Context context) {
+        return sharedPreferences;
+    }
+
+    /** Private methods. */
+
+    /**
+     * Used internally to reload the shared prefs file.
+     */
+    public void reload() {
+        if (xSharedPreferences != null) {
+            xSharedPreferences.reload();
+        }
     }
 
     public Location getLocation() {
         boolean ok;
         Location loc = new Location("gps");
         try {
-            loc.setLatitude(getFloat("latitude"));
-            loc.setLongitude(getFloat("longitude"));
-            loc.setAltitude(getFloat("altitude"));
-            loc.setSpeed((float) getFloat("speed"));
-            loc.setAccuracy((float) getFloat("accuracy"));
-            loc.setBearing((float) getFloat("bearing"));
+            loc.setLatitude(get("latitude", 0));
+            loc.setLongitude(get("longitude", 0));
+            loc.setAltitude(get("altitude", 0));
+            loc.setSpeed(get("speed", 0));
+            loc.setAccuracy(get("accuracy", 0));
+            loc.setBearing(get("bearing", 0));
 
             ok = true;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             ok = false;
         }
 
@@ -77,9 +217,6 @@ public class SettingsStorage {
             // update cached value
             cached_location.set(loc);
         } else {
-            if (isXposed()) {
-                XposedBridge.log("GetNumber failed, using cached location.");
-            }
             loc.set(cached_location);
         }
 
@@ -87,13 +224,12 @@ public class SettingsStorage {
     }
 
     public boolean isEnabled() {
-        boolean state = cached_state;
-        if (sharedPreferences != null)
-            state = sharedPreferences.getBoolean("start", false);
-        else if (xSharedPreferences != null)
-            state = xSharedPreferences.getBoolean("start", false);
-        cached_state = state;
-        return state;
+        cached_state = safeGet("start", cached_state);
+        return cached_state;
+    }
+
+    public boolean isJoystickEnabled() {
+        return safeGet("show_joystick", false);
     }
 
     public void saveLocation(Location loc) {
@@ -113,4 +249,3 @@ public class SettingsStorage {
         prefEditor.apply();
     }
 }
-

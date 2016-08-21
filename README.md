@@ -9,7 +9,7 @@ The main app is currently just a location picker which also starts the joystick 
 
 On the map you can pick your start location. From there you can go to other apps and move around with the joystick.
 
-![](screenshots/v0.3-tsa.png)
+![](screenshots/v0.3-tsa2.png)
 
 ## Simulate Location in other Apps
 
@@ -42,7 +42,6 @@ This is *work in progress*.
 - nicer noise
 - simulate accuracy data
 - simulate IMU
-- disable/enable joystick
 - choose hooked Apps
 
 ## Build
@@ -57,12 +56,16 @@ This is *work in progress*.
 - Activate it in Xposed settings
 - (Soft) Reboot
 
+## Compatibility
+
+- Android 4.4+
+
 ## Credits
 
 - [Xposed Framework](http://forum.xda-developers.com/showthread.php?t=3034811)
 - Map: [OSMDroid](https://github.com/osmdroid/osmdroid), default tiles: [OpenCycleMap](http://www.opencyclemap.org/)
 - Joystick: [Bugstick](https://github.com/justasm/Bugstick) by justasm
 - Satellite calculation: [predict4java](https://github.com/badgersoftdotcom/predict4java) by G4DPZ
+- Settings based on: [UnToasted](https://github.com/egingell/UnToasted) by egingell
 - App icon made by [Roundicons Freebies](http://www.flaticon.com/authors/roundicons-freebies) ([CC-BY](https://creativecommons.org/licenses/by/3.0/), background added)
 - Marker icon made by [freepik](http://www.flaticon.com/authors/freepik) from www.flaticon.com
-- Settings Code based on: [xposed-gps](https://github.com/hilarycheng/xposed-gps)

@@ -4,14 +4,15 @@ import android.content.Intent;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.os.Bundle;
-import android.support.design.widget.FloatingActionButton;
+import android.support.design.widget.NavigationView;
 import android.support.design.widget.Snackbar;
 import android.support.v4.content.ContextCompat;
-import android.support.v4.widget.Space;
+import android.support.v4.view.GravityCompat;
+import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
-import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
 
@@ -24,17 +25,17 @@ import org.osmdroid.views.overlay.OverlayItem;
 import java.util.LinkedList;
 
 public class MainActivity extends AppCompatActivity
-        implements IPC.LocationUpdateListener, IPC.StateUpdateListener {
+        implements IPC.LocationUpdateListener, IPC.StateUpdateListener,
+        NavigationView.OnNavigationItemSelectedListener {
     static final String TAG = "MainActivity";
 
+    private Menu menu;
     private MapViewLoc map;
     private IMapController mapController;
 
     private ItemizedIconOverlay markersOverlay;
     private OverlayItem markerOverlay;
     private Drawable myMarker;
-
-    private FloatingActionButton fab;
 
     // IPC to JoystickService
     private SettingsStorage settingsStorage;
@@ -46,17 +47,11 @@ public class MainActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        settingsStorage = new SettingsStorage(getApplicationContext());
-        /*if (!settingsStorage.xposedTest(getApplicationContext())) {
-            Log.e(TAG, "xposed not found, bye");
-            finish();
-            return;
-        }*/
-
         // start joystick overlay
         startService(new Intent(this, JoystickService.class));
 
         // settings
+        settingsStorage = SettingsStorage.getSettingsStorage(getApplicationContext());
         settings.setSettingsStorage(settingsStorage);
 
         // start IPC
@@ -110,22 +105,15 @@ public class MainActivity extends AppCompatActivity
 
         });
 
-        // start/stop button
-        fab = (FloatingActionButton)findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                boolean state = !settings.isEnabled();
-                settings.sendState(state);
-                updateState(state);
+        // navigation drawer
+        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
+                this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+        drawer.setDrawerListener(toggle);
+        toggle.syncState();
 
-                String sstate = state ? "on" : "off";
-
-                Snackbar.make(view, "Location faker now " + sstate, Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
-        });
-        updateState(settings.isEnabled());
+        NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
+        navigationView.setNavigationItemSelectedListener(this);
 
         // warning if Xposed hook failed
         if (!settings.isXposedLoaded()) {
@@ -135,12 +123,26 @@ public class MainActivity extends AppCompatActivity
                     "Xposed Hooks not found! Did you restart yet?", Snackbar.LENGTH_INDEFINITE)
                     .setAction("Action", null).show();
         }
+
+        // start/stop button
+        updateState(settings.isEnabled());
+    }
+
+    @Override
+    public void onBackPressed() {
+        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+        if (drawer.isDrawerOpen(GravityCompat.START)) {
+            drawer.closeDrawer(GravityCompat.START);
+        } else {
+            super.onBackPressed();
+        }
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
+        getMenuInflater().inflate(R.menu.main, menu);
+        this.menu = menu;
         return true;
     }
 
@@ -152,11 +154,54 @@ public class MainActivity extends AppCompatActivity
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
+        if (id == R.id.action_startstop) {
+            // toggle location spoofer
+            boolean state = !settings.isEnabled();
+            settings.sendState(state);
+            updateState(state);
+
+            String sstate = state ? "on" : "off";
+
+            Snackbar.make(findViewById(R.id.map), "Location Spoofer now " + sstate, Snackbar.LENGTH_LONG)
+                    .setAction("Action", null).show();
             return true;
+        } else if (id == R.id.action_joystick) {
+            // toggle joystick
+            boolean state = !settingsStorage.isJoystickEnabled();
+            JoystickService.get().showJoystick(state);
+
+            try {
+                settingsStorage.put("show_joystick", state);
+            } catch (Throwable e) {
+            }
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    @SuppressWarnings("StatementWithEmptyBody")
+    @Override
+    public boolean onNavigationItemSelected(MenuItem item) {
+        // Handle navigation view item clicks here.
+        int id = item.getItemId();
+
+        /*if (id == R.id.nav_camera) {
+            // Handle the camera action
+        } else if (id == R.id.nav_gallery) {
+
+        } else if (id == R.id.nav_slideshow) {
+
+        } else if (id == R.id.nav_manage) {
+
+        } else if (id == R.id.nav_share) {
+
+        } else if (id == R.id.nav_send) {
+
+        }*/
+
+        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+        drawer.closeDrawer(GravityCompat.START);
+        return true;
     }
 
     @Override
@@ -203,12 +248,20 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void updateState(boolean enabled) {
+        if (menu == null) {
+            return;
+        }
+
         int id;
         if (enabled) {
-            id = getResources().getIdentifier("@android:drawable/ic_media_play", null, null);
+            if (settings.isXposedLoaded()) {
+                id = R.string.service_started;
+            } else {
+                id = R.string.service_failed;
+            }
         } else {
-            id = getResources().getIdentifier("@android:drawable/ic_media_pause", null, null);
+            id = R.string.service_stopped;
         }
-        fab.setImageResource(id);
+        menu.findItem(R.id.action_startstop).setTitle(getString(id));
     }
 }

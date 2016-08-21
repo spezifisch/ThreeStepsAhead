@@ -56,7 +56,7 @@ public class GPSMan implements IXposedHookLoadPackage {
             rand = new Random(System.currentTimeMillis() + 234213370);
 
             // file settings
-            settingsStorage = new SettingsStorage();
+            settingsStorage = SettingsStorage.getSettingsStorage();
 
             // IPC instance
             settings = new IPC.SettingsClient();
