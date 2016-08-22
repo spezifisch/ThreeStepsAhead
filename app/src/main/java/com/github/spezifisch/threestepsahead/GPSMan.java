@@ -21,12 +21,7 @@ import java.util.Random;
 public class GPSMan implements IXposedHookLoadPackage {
     // our app
     private static final String THIS_APP = "com.github.spezifisch.threestepsahead";
-
-    // hooked apps
-    private List<String> hooked_apps = Arrays.asList(
-            "com.vonglasow.michael.satstat",
-            "com.nianticlabs.pokemongo"
-    );
+    private static final boolean DEBUG = false;
 
     // IPC to JoystickService
     private SettingsStorage settingsStorage;
@@ -35,7 +30,7 @@ public class GPSMan implements IXposedHookLoadPackage {
 
     private Location location;
     private Random rand;
-    private boolean simulateNoise = false;
+    private boolean simulateNoise = true;
 
     // GPS satellite calculator
     private SpaceMan spaceMan;
@@ -48,9 +43,12 @@ public class GPSMan implements IXposedHookLoadPackage {
             // for the main app to know xposed is running
             Class<?> clazz = XposedHelpers.findClass(THIS_APP + ".SettingsStorage", lpparam.classLoader);
             XposedHelpers.setStaticBooleanField(clazz, "xposed_loaded", true);
-        } else if (isHookedApp(lpparam.packageName)) {
+        } else {
             XposedBridge.log(lpparam.packageName + " app loaded -> initing");
-            // init stuff when hooked app is started
+
+            if (!simulateNoise) {
+                XposedBridge.log("Noise deactivated. This is not a good idea.");
+            }
 
             // init random
             rand = new Random(System.currentTimeMillis() + 234213370);
@@ -81,10 +79,6 @@ public class GPSMan implements IXposedHookLoadPackage {
         }
     }
 
-    private boolean isHookedApp(String packageName) {
-        return hooked_apps.contains(packageName);
-    }
-
     void initHookListenerTransport(LoadPackageParam lpparam) {
         class ListenerTransportHook extends XC_MethodHook {
             // this hooks an internal method of LocationManager, which calls OnLocationChanged and other callbacks
@@ -110,6 +104,8 @@ public class GPSMan implements IXposedHookLoadPackage {
                     param.args[0] = message;
 
                     XposedBridge.log("ListenerTransport Location faked: " + message.obj);
+                } else {
+                    XposedBridge.log("ListenerTransport unhandled message(" + message.what + ") " + message.obj);
                 }
             }
         }
@@ -139,7 +135,7 @@ public class GPSMan implements IXposedHookLoadPackage {
                 }
 
                 // update TLE
-                if (serviceClient.isConnected() && spaceMan.getTLECount() == 0) { // TODO when too old
+                if (serviceClient.isConnected() && spaceMan.getTLECount() == 0) {
                     settings.requestTLE(); // async, getTLE probably takes a bit
                     spaceMan.parseTLE(settings.getTLE());
                 }
@@ -149,8 +145,10 @@ public class GPSMan implements IXposedHookLoadPackage {
                 spaceMan.setGroundStationPosition(location);
                 spaceMan.calculatePositions();
 
-                spaceMan.dumpSatelliteInfo();
-                spaceMan.dumpGpsSatellites();
+                if (DEBUG) {
+                    spaceMan.dumpSatelliteInfo();
+                    spaceMan.dumpGpsSatellites();
+                }
 
                 // get satellites in view
                 ArrayList<SpaceMan.MyGpsSatellite> mygps = spaceMan.getGpsSatellites();
@@ -178,7 +176,7 @@ public class GPSMan implements IXposedHookLoadPackage {
                         for (SpaceMan.MyGpsSatellite gs: mygps) {
                             prns[i] = gs.prn;
                             if (simulateNoise) {
-                                snrs[i] = Math.round(gs.snr + rand.nextGaussian()*10.0f);
+                                snrs[i] = Math.round(gs.snr + rand.nextGaussian()*1.0f);
                             } else {
                                 snrs[i] = gs.snr;
                             }
@@ -194,9 +192,11 @@ public class GPSMan implements IXposedHookLoadPackage {
                                 almanacMask |= prnShift;
                             }
                             if (gs.usedInFix) {
-                                if (!simulateNoise || rand.nextFloat() > 0.92f) { // 8% drop
+                                //if (!simulateNoise) {
                                     usedInFixMask |= prnShift;
-                                }
+                                //} else if (gs.elevation > 22.0f || rand.nextFloat() < 0.97f) { // 3% drop for low sats
+                                //    usedInFixMask |= prnShift;
+                                //}
                             }
 
                             i++;
@@ -235,8 +235,8 @@ public class GPSMan implements IXposedHookLoadPackage {
                     return;
                 }
 
-                if (param.args[0] != null) { // provider enabled + location returned
-                    Location location = fakeLocation((Location)param.args[0]);
+                if (param.getResult() != null) { // provider enabled + location returned
+                    Location location = fakeLocation((Location)param.getResult());
                     param.setResult(location);
 
                     XposedBridge.log("getLastKnownLocation Location faked: " + location);
@@ -254,10 +254,14 @@ public class GPSMan implements IXposedHookLoadPackage {
 
         // add gaussian noise with given sigma
         if (simulateNoise) {
-            location.setBearing((float) (location.getBearing() + rand.nextGaussian() * 2.0));      // 2 deg
-            location.setSpeed((float) Math.abs(location.getSpeed() + rand.nextGaussian() * 0.2));  // 0.2 m/s
-            double distance = rand.nextGaussian() * Math.max(5.0, location.getAccuracy()) / 3.0;        // 5 m or accuracy (getAccuracy looks rather than 3sigma)
-            double theta = Math.toRadians(rand.nextFloat() * 360.0);                                    // direction of displacement should be uniformly distributed
+            location.setBearing((float) (location.getBearing() + rand.nextGaussian() * 2.0));       // 2 deg
+            if (location.getSpeed() > 1.0) {
+                location.setSpeed((float) Math.abs(location.getSpeed() + rand.nextGaussian() * 0.2));
+            } else {
+                location.setSpeed((float) Math.abs(location.getSpeed() + rand.nextGaussian() * 0.05));
+            }
+            double distance = rand.nextGaussian() * Math.max(5.0, location.getAccuracy()) / 3.0;    // 5 m or accuracy (getAccuracy looks rather than 3sigma)
+            double theta = Math.toRadians(rand.nextFloat() * 360.0);                                // direction of displacement should be uniformly distributed
             location = LocationHelper.displace(location, distance, theta);
         }
     }

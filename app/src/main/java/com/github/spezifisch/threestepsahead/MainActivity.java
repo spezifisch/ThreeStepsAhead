@@ -32,6 +32,7 @@ public class MainActivity extends AppCompatActivity
         implements IPC.LocationUpdateListener, IPC.StateUpdateListener,
         NavigationView.OnNavigationItemSelectedListener {
     static final String TAG = "MainActivity";
+    private static final boolean DEBUG = false;
 
     private Menu menu;
     private MapViewLoc map;
@@ -225,7 +226,10 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public void OnLocationUpdate(Location loc) {
-        Log.d(TAG, "got location update:" + loc);
+        if (DEBUG) {
+            Log.d(TAG, "got location update:" + loc);
+        }
+
         updateMarker(loc, true);
 
         // throttle settings updates

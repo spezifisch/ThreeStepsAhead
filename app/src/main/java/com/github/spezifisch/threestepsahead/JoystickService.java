@@ -22,6 +22,7 @@ import com.jmedeisis.bugstick.JoystickListener;
 public class JoystickService extends Service {
     static final String TAG = "JoystickService";
     static private JoystickService me;
+    private static final boolean DEBUG = false;
 
     protected WindowManager windowManager;
     protected LinearLayout joystickView;
@@ -166,7 +167,9 @@ public class JoystickService extends Service {
             loc.setTime(now);
             settings.sendLocation(loc);
 
-            Log.d(TAG, "tdiff " + tdiff + " yaw " + yaw + " dist " + dist + " time " + now + " new location: " + loc);
+            if (DEBUG) {
+                Log.d(TAG, "tdiff " + tdiff + " yaw " + yaw + " dist " + dist + " time " + now + " new location: " + loc);
+            }
         }
     }
 

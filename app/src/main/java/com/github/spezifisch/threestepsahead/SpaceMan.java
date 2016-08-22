@@ -148,12 +148,12 @@ public class SpaceMan {
                 gs.snr = Math.round(20.0f + 70.0f * gs.elevation/90.0f);
 
                 // some quick decisions
-                gs.hasAlmanac = (gs.elevation > 45.0);
-                gs.hasEphemeris = (gs.elevation > 30.0);
-                gs.usedInFix = (gs.elevation > 18.0);
+                gs.hasAlmanac = (gs.elevation > 20.0);
+                gs.hasEphemeris = (gs.elevation > 10.0);
+                gs.usedInFix = (gs.elevation > 10.0);
 
                 // unlikely to see lower satellites
-                if (gs.elevation > 12.0) {
+                if (gs.elevation > 10.0) {
                     gpsSatellites.add(gs);
                 }
             }

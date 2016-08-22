@@ -21,6 +21,7 @@ import de.robv.android.xposed.XposedBridge;
 
 public class IPC {
     private static final String THIS_APP = "com.github.spezifisch.threestepsahead";
+    private static final boolean DEBUG = false;
 
     static public class msg {
         // internal
@@ -249,7 +250,9 @@ public class IPC {
         @Override
         public void handleMessage(Message message) {
             try {
-                log("js binder msg " + message);
+                if (DEBUG) {
+                    log("js binder msg " + message);
+                }
                 Bundle bundle = message.getData();
                 boolean self_message = false;
 
@@ -262,7 +265,10 @@ public class IPC {
                                 continue;
                             }
 
-                            log("relay to client " + c);
+                            if (DEBUG) {
+                                log("relay to client " + c);
+                            }
+
                             // build new message with same data. can't reuse same message object
                             Message mnew = Message.obtain(null, message.what);
                             mnew.setData(bundle);
@@ -378,7 +384,9 @@ public class IPC {
             bundle.putFloat("accuracy", location.getAccuracy());
             message.setData(bundle);
 
-            log("sendLocation: " + location);
+            if (DEBUG) {
+                log("sendLocation: " + location);
+            }
             return send(message);
         }
 
