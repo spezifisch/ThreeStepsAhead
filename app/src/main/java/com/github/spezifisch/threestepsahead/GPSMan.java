@@ -15,6 +15,7 @@ import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 import de.robv.android.xposed.XC_MethodHook;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 
@@ -22,6 +23,12 @@ public class GPSMan implements IXposedHookLoadPackage {
     // our app
     private static final String THIS_APP = "com.github.spezifisch.threestepsahead";
     private static final boolean DEBUG = false;
+
+    // whitelist for apps not to hook
+    private List<String> whitelist = Arrays.asList(
+            THIS_APP,
+            "com.github.spezifisch.sensorrawlogger"
+    );
 
     // IPC to JoystickService
     private SettingsStorage settingsStorage;
@@ -35,6 +42,10 @@ public class GPSMan implements IXposedHookLoadPackage {
     // GPS satellite calculator
     private SpaceMan spaceMan;
 
+    private boolean inWhitelist(String s) {
+        return whitelist.contains(s);
+    }
+
     @Override
     public void handleLoadPackage(LoadPackageParam lpparam) throws Throwable {
         if (lpparam.packageName.equals(THIS_APP)) {
@@ -43,7 +54,7 @@ public class GPSMan implements IXposedHookLoadPackage {
             // for the main app to know xposed is running
             Class<?> clazz = XposedHelpers.findClass(THIS_APP + ".SettingsStorage", lpparam.classLoader);
             XposedHelpers.setStaticBooleanField(clazz, "xposed_loaded", true);
-        } else {
+        } else if (!inWhitelist(lpparam.packageName)) {
             XposedBridge.log(lpparam.packageName + " app loaded -> initing");
 
             if (!simulateNoise) {

@@ -16,4 +16,29 @@
         android:layout_width="fill_parent"
         android:layout_height="fill_parent" />
 
+    <ImageButton
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/zoomIn"
+        android:src="@drawable/zoom_control_in"
+        android:background="#00000000"
+        android:layout_alignTop="@+id/map"
+        android:layout_alignRight="@+id/map"
+        android:layout_marginTop="16dp"
+        android:layout_marginRight="16dp"
+        android:contentDescription="@string/zoom_in" />
+
+    <ImageButton
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/zoomOut"
+        android:src="@drawable/zoom_control_out"
+        android:background="#00000000"
+        android:layout_alignRight="@+id/map"
+        android:layout_marginTop="0dp"
+        android:layout_marginRight="16dp"
+        android:contentDescription="@string/zoom_out"
+        android:layout_below="@+id/zoomIn" />
+
+
 </RelativeLayout>

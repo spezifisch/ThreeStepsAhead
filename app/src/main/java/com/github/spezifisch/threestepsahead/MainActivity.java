@@ -18,6 +18,8 @@ import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import org.osmdroid.api.IMapController;
@@ -72,13 +74,13 @@ public class MainActivity extends AppCompatActivity
 
         // OSM map
         map = (MapViewLoc) findViewById(R.id.map);
-        map.setTileSource(TileSourceFactory.CYCLEMAP);
+        map.setTileSource(TileSourceFactory.MAPNIK);
         //map.setBuiltInZoomControls(true); // interferes with Snackbar
         map.setMultiTouchControls(true);
 
         // set zoom
         mapController = map.getController();
-        mapController.setZoom(14);
+        mapController.setZoom(17);
 
         // set marker
         myMarker = ContextCompat.getDrawable(this, R.drawable.pointer);
@@ -90,9 +92,13 @@ public class MainActivity extends AppCompatActivity
         Location loc = settings.getLocation();
         updateMarker(loc, true);
 
-        // click handler
-        map.addTapListener(new MapViewLoc.OnTapListener() {
+        // zoom out for unset location
+        if (Math.abs(loc.getLatitude()) < 0.1 && Math.abs(loc.getLongitude()) < 0.1) {
+            mapController.setZoom(2);
+        }
 
+        // map click handler
+        map.addTapListener(new MapViewLoc.OnTapListener() {
             @Override
             public void onMapTapped(GeoPoint geoPoint) {}
 
@@ -108,7 +114,34 @@ public class MainActivity extends AppCompatActivity
 
                 updateMarker(location, false);
             }
+        });
 
+        // custom zoom buttons
+        final ImageView zIn = (ImageView)findViewById(R.id.zoomIn);
+        final ImageView zOut = (ImageView)findViewById(R.id.zoomOut);
+        zIn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                mapController.zoomIn();
+                if (!map.canZoomIn()) {
+                    zIn.setEnabled(false);
+                }
+                if (map.canZoomOut()) {
+                    zOut.setEnabled(true);
+                }
+            }
+        });
+        zOut.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                mapController.zoomOut();
+                if (!map.canZoomOut()) {
+                    zOut.setEnabled(false);
+                }
+                if (map.canZoomIn()) {
+                    zIn.setEnabled(true);
+                }
+            }
         });
 
         // navigation drawer
@@ -129,9 +162,6 @@ public class MainActivity extends AppCompatActivity
                     "Xposed Hooks not found! Did you restart yet?", Snackbar.LENGTH_INDEFINITE)
                     .setAction("Action", null).show();
         }
-
-        // start/stop button
-        updateState(settings.isEnabled());
     }
 
     @Override
@@ -167,6 +197,9 @@ public class MainActivity extends AppCompatActivity
             Log.e(TAG, "Couldn't show version.");
         }
 
+        // update service start/stop button
+        updateState(settings.isEnabled());
+
         return true;
     }
 
@@ -182,11 +215,15 @@ public class MainActivity extends AppCompatActivity
             // toggle location spoofer
             boolean state = !settings.isEnabled();
             settings.sendState(state);
-            updateState(state);
+            boolean ok = updateState(state);
 
             String sstate = state ? "on" : "off";
+            String t = "Location Spoofer now " + sstate;
+            if (!ok) {
+                t = "Failed activating Location Spoofer";
+            }
 
-            Snackbar.make(findViewById(R.id.map), "Location Spoofer now " + sstate, Snackbar.LENGTH_LONG)
+            Snackbar.make(findViewById(R.id.map), t, Snackbar.LENGTH_LONG)
                     .setAction("Action", null).show();
             return true;
         } else if (id == R.id.action_joystick) {
@@ -278,21 +315,25 @@ public class MainActivity extends AppCompatActivity
         updateMarker(point, center);
     }
 
-    private void updateState(boolean enabled) {
+    private boolean updateState(boolean enabled) {
         if (menu == null) {
-            return;
+            return false;
         }
 
+        boolean ok = true;
         int id;
         if (enabled) {
             if (settings.isXposedLoaded()) {
                 id = R.string.service_started;
             } else {
                 id = R.string.service_failed;
+                ok = false;
             }
         } else {
             id = R.string.service_stopped;
         }
         menu.findItem(R.id.action_startstop).setTitle(getString(id));
+
+        return ok;
     }
 }
