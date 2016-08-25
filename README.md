@@ -35,13 +35,9 @@ Speed and bearing are simulated according to your joystick.
 
 ## TODO
 
-This is *work in progress*.
-
+- simulate sensor data
+- further research to mimic GPS receiver noise ([SensorRawLogger](https://github.com/spezifisch/SensorRawLogger))
 - online update of TLE data
-- simulate altitude (we need another data source for that)
-- nicer noise
-- simulate accuracy data
-- simulate IMU
 - choose hooked Apps
 
 ## Build
