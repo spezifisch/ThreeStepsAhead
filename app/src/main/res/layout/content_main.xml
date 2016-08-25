@@ -14,7 +14,8 @@
 
     <com.github.spezifisch.threestepsahead.MapViewLoc android:id="@+id/map"
         android:layout_width="fill_parent"
-        android:layout_height="fill_parent" />
+        android:layout_height="fill_parent"
+        android:visibility="invisible" />
 
     <ImageButton
         android:layout_width="wrap_content"

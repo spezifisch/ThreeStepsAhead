@@ -229,7 +229,7 @@ public class SettingsStorage {
     }
 
     public boolean isJoystickEnabled() {
-        return safeGet("show_joystick", false);
+        return safeGet("show_joystick", true);
     }
 
     public void saveLocation(Location loc) {

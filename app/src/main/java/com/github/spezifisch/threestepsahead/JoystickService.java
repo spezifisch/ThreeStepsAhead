@@ -26,6 +26,8 @@ public class JoystickService extends Service {
 
     protected WindowManager windowManager;
     protected LinearLayout joystickView;
+    protected boolean joystickViewAdded = false;
+    protected WindowManager.LayoutParams joystickViewParams;
 
     protected TextView textSpeedTrans, textBearing;
 
@@ -60,16 +62,16 @@ public class JoystickService extends Service {
         final DisplayMetrics metrics = new DisplayMetrics();
         windowManager = (WindowManager)getSystemService(Context.WINDOW_SERVICE);
         windowManager.getDefaultDisplay().getMetrics(metrics);
-        WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+        joystickViewParams = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.TYPE_PHONE,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT);
 
-        params.gravity = Gravity.CENTER_VERTICAL | Gravity.RIGHT;
-        params.x = 0;
-        params.y = 0;
+        joystickViewParams.gravity = Gravity.CENTER_VERTICAL | Gravity.RIGHT;
+        joystickViewParams.x = 0;
+        joystickViewParams.y = 0;
 
         // create joystick view
         final LayoutInflater inflater = LayoutInflater.from(this);
@@ -78,9 +80,6 @@ public class JoystickService extends Service {
         // get text fields
         textBearing = (TextView)joystickView.findViewById(R.id.speed_rot);
         textSpeedTrans = (TextView)joystickView.findViewById(R.id.speed_trans);
-
-        // add joystick overlay
-        windowManager.addView(joystickView, params);
 
         // add callbacks for joystick events
         Joystick joystick = (Joystick)joystickView.findViewById(R.id.joystick);
@@ -234,6 +233,18 @@ public class JoystickService extends Service {
     }
 
     public void showJoystick(boolean show) {
+        if (!joystickViewAdded) {
+            try {
+                // add joystick overlay
+                windowManager.addView(joystickView, joystickViewParams);
+                joystickViewAdded = true;
+
+            } catch (SecurityException e) {
+                Log.e(TAG, "Overlay permission failed! Not adding View.");
+                return;
+            }
+        }
+
         if (show) {
             joystickView.setVisibility(View.VISIBLE);
         } else {
