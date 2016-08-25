@@ -118,7 +118,7 @@ public class IPC {
                 Intent intent = new Intent();
                 intent.setComponent(cn);
                 if (!context.bindService(intent, this, Context.BIND_AUTO_CREATE)) {
-                    Toast.makeText(AndroidAppHelper.currentApplication(), "Unable to start service!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(AndroidAppHelper.currentApplication(), "Unable to start service! Did you reboot after updating?", Toast.LENGTH_SHORT).show();
                 }
                 return true;
             }
