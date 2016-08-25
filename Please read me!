@@ -1,0 +1,20 @@
+Hi. I'm sorry that I'm not sure what the proper channel to contact you is, so out of desperation I'm trying this. I hope you see this! My background is in healthcare so I don't know how to code or anything, I just love Android stuff and your module looks amazing! I just made this account to try to message you :)
+
+I wanted to bring to your attention a possible issue. I have compiled and tested your module; API 19 & 22 runs great, but in Marshmellow it crashes on start up.
+
+I researched this more and found that
+
+`<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>`
+
+in the manifest is used to give permission for the overlay (I think...maybe).
+
+Apparently since API 23 this permission does not work as it use to.
+
+The error I grabbed from logcat is:
+
+`java.lang.RuntimeException: Unable to start service com.github.spezifisch.threestepsahead.JoystickService@cae6052 with Intent { cmp=com.github.spezifisch.threestepsahead/.JoystickService }: android.view.WindowManager$BadTokenException: Unable to add window android.view.ViewRootImpl$W@4a8f8b4 -- permission denied for this window type`
+...
+
+`Caused by: android.view.WindowManager$BadTokenException: Unable to add window android.view.ViewRootImpl$W@4a8f8b4 -- permission denied for this window type`
+
+Thank you again for taking the time to read this. My email is clusterone34@gmail.com. Not that I am expecting a response or anything but just wanted to give you it in case you wanna reply ^_^
