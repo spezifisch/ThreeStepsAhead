@@ -27,7 +27,7 @@ public class JoystickService extends Service {
     protected WindowManager windowManager;
     protected LinearLayout joystickView;
 
-    protected TextView textSpeedTrans, textSpeedRot;
+    protected TextView textSpeedTrans, textBearing;
 
     // IPC interface
     private SettingsStorage settingsStorage;
@@ -76,7 +76,7 @@ public class JoystickService extends Service {
         joystickView = (LinearLayout)inflater.inflate(R.layout.joystick, null, false);
 
         // get text fields
-        textSpeedRot = (TextView)joystickView.findViewById(R.id.speed_rot);
+        textBearing = (TextView)joystickView.findViewById(R.id.speed_rot);
         textSpeedTrans = (TextView)joystickView.findViewById(R.id.speed_trans);
 
         // add joystick overlay
@@ -120,9 +120,10 @@ public class JoystickService extends Service {
     public class RunningMan {
         static final String TAG = "RunningMan";
 
-        private final String speedRotString = getString(R.string.speed_rot_value);
+        private final String speedBearingString = getString(R.string.bearing_value);
         private final String speedTransString = getString(R.string.speed_trans_value);
 
+        protected long last_step = -1;
 
         public RunningMan() {
             stop();
@@ -133,42 +134,64 @@ public class JoystickService extends Service {
         }
 
         public void updateVelocity(double speed_trans, double speed_rot) {
-            // update textview
-            textSpeedTrans.setText(String.format(speedTransString, speed_trans));
-            textSpeedRot.setText(String.format(speedRotString, Math.toDegrees(speed_rot)));
+            boolean rot_still = (Math.abs(speed_rot) < Math.toRadians(1.0));    // < 1.0 deg/s
+            boolean still = (Math.abs(speed_trans) < 0.1) && rot_still;         // also < 0.1 m/s, it's ok since noise makes it less artificial later
+
+            long now = System.currentTimeMillis();
+            if (last_step == -1) {
+                last_step = now;
+            }
+
+            // see how much time elapsed since last updateVelocity call
+            long step_diff = now - last_step; // ms
+            if (step_diff > 1000) {
+                // max. step, avoid jumps
+                step_diff = 1000;
+            }
+
+            // throttle step update
+            if ((step_diff < 5) && !still) {
+                return;
+            }
+
+            last_step = now;
 
             // get previous location
             Location loc = settings.getLocation();
 
-            // see how much time elapsed
-            long now = System.currentTimeMillis();
-            long tdiff = now - loc.getTime(); // ms
-            if (tdiff > 1000) {
-                // max. step, avoid jumps
-                tdiff = 1000;
-            }
+            // time since last location update
+            long update_diff = now - loc.getTime(); // ms
 
             // advance angle (north = 0)
-            double yaw = Math.toRadians(loc.getBearing());
-            if (Math.abs(speed_rot) > Math.toRadians(1.0)) { // avoid accumulating errors for small angles
-                yaw -= speed_rot * tdiff / 1000.0; // rad
+            double brng = Math.toRadians(loc.getBearing());
+            if (!rot_still) {
+                // speed_rot is CCW, bearing is CW, therefore *-1
+                brng += -1.0 * speed_rot * step_diff / 1000.0; // rad
             }
 
             // advance walk
-            double dist = speed_trans * tdiff / 1000.0; // m
+            double dist = speed_trans * step_diff / 1000.0; // m
             // max. distance per step
             dist = Math.max(-100.0, dist);
             dist = Math.min(100.0, dist);
 
-            // update location
-            loc = LocationHelper.displace(loc, dist, yaw);
-            loc.setBearing((float)Math.toDegrees(yaw));
-            loc.setSpeed((float)Math.abs(speed_trans)); // only pos. speed? maybe.
-            loc.setTime(now);
-            settings.sendLocation(loc);
+            // throttled update
+            boolean update_time = (update_diff > 20); // 50 Hz
+            if (update_time || still) {
+                // update location
+                loc = LocationHelper.displace(loc, dist, brng);
+                loc.setBearing((float) Math.toDegrees(brng));
+                loc.setSpeed((float) Math.abs(speed_trans)); // only pos. speed? maybe.
+                loc.setTime(now);
+                settings.sendLocation(loc);
 
-            if (DEBUG) {
-                Log.d(TAG, "tdiff " + tdiff + " yaw " + yaw + " dist " + dist + " time " + now + " new location: " + loc);
+                if (DEBUG) {
+                    Log.d(TAG, "tdiff " + step_diff + " yaw " + brng + " dist " + dist + " time " + now + " new location: " + loc);
+                }
+
+                // update textview
+                textSpeedTrans.setText(String.format(speedTransString, speed_trans));
+                textBearing.setText(String.format(speedBearingString, Math.toDegrees(brng)));
             }
         }
     }
@@ -189,7 +212,7 @@ public class JoystickService extends Service {
 
         @Override
         public void onDrag(float degrees, float offset) {
-            final double SPEED_ROT_MAX_RADS = Math.toRadians(45.0);  // max. rotational velocity
+            final double SPEED_ROT_MAX_RADS = Math.toRadians(180.0); // max. rotational velocity
             final double SPEED_TRANS_MAX = 4.2;                      // 4.2 m/s (15 km/h) max. trans. velocity
 
             // convert polar to cartesian

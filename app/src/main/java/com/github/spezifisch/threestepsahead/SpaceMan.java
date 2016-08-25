@@ -22,6 +22,7 @@ public class SpaceMan {
     // time for calculation
     protected Date now;
     // our location
+    protected Location calculatedLocation;
     protected GroundStationPosition groundStationPosition;
 
     // satellite data cache (shared)
@@ -49,6 +50,7 @@ public class SpaceMan {
     protected ArrayList<MyGpsSatellite> gpsSatellites = new ArrayList<>();
 
     public SpaceMan() {
+        setNow();
     }
 
     public SpaceMan(String tles, Location loc) {
@@ -71,8 +73,17 @@ public class SpaceMan {
         now = new Date(time);
     }
 
+    public long getNow() {
+        return now.getTime();
+    }
+
     public void setGroundStationPosition(Location loc) {
         groundStationPosition = new GroundStationPosition(loc.getLatitude(), loc.getLongitude(), loc.getAltitude());
+        calculatedLocation = loc;
+    }
+
+    public Location getCalculatedLocation() {
+        return calculatedLocation;
     }
 
     public ArrayList<MyGpsSatellite> getGpsSatellites() {

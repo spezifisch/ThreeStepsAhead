@@ -151,14 +151,22 @@ public class GPSMan implements IXposedHookLoadPackage {
                     spaceMan.parseTLE(settings.getTLE());
                 }
 
-                // calculate satellite positions for current location and time
-                spaceMan.setNow();
-                spaceMan.setGroundStationPosition(location);
-                spaceMan.calculatePositions();
+                // need to recalculate sats?
+                long elapsedSinceCalc = System.currentTimeMillis() - spaceMan.getNow();
+                if (spaceMan.getCalculatedLocation() == null || // first time
+                        (spaceMan.getCalculatedLocation().distanceTo(location) > 1000.0 /* m */) || // distance limit
+                        (elapsedSinceCalc > 600.0 /* s */)) { // time limit
+                    XposedBridge.log("recalculating satellites");
 
-                if (DEBUG) {
-                    spaceMan.dumpSatelliteInfo();
-                    spaceMan.dumpGpsSatellites();
+                    // calculate satellite positions for current location and time
+                    spaceMan.setNow();
+                    spaceMan.setGroundStationPosition(location);
+                    spaceMan.calculatePositions();
+
+                    if (DEBUG) {
+                        spaceMan.dumpSatelliteInfo();
+                        spaceMan.dumpGpsSatellites();
+                    }
                 }
 
                 // get satellites in view
@@ -271,8 +279,8 @@ public class GPSMan implements IXposedHookLoadPackage {
             } else {
                 location.setSpeed((float) Math.abs(location.getSpeed() + rand.nextGaussian() * 0.05));
             }
-            double distance = rand.nextGaussian() * Math.max(5.0, location.getAccuracy()) / 3.0;    // 5 m or accuracy (getAccuracy looks rather than 3sigma)
-            double theta = Math.toRadians(rand.nextFloat() * 360.0);                                // direction of displacement should be uniformly distributed
+            double distance = rand.nextGaussian() * Math.max(5.0, location.getAccuracy()) / 6.0;    // WIP
+            double theta = Math.toRadians(rand.nextFloat() * 360.0);
             location = LocationHelper.displace(location, distance, theta);
         }
     }

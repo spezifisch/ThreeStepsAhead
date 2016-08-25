@@ -17,23 +17,34 @@
 
     </com.jmedeisis.bugstick.Joystick>
 
-    <TextView
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceSmall"
-        android:id="@+id/speed_rot"
-        android:background="@color/bg_hud"
-        android:typeface="monospace"
-        android:text="ROT"
-        android:textAlignment="textEnd" />
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:weightSum="2">
 
-    <TextView
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceSmall"
-        android:id="@+id/speed_trans"
-        android:background="@color/bg_hud"
-        android:typeface="monospace"
-        android:text="TRANS"
-        android:textAlignment="textEnd" />
+        <TextView
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:id="@+id/speed_rot"
+            android:background="@color/bg_hud"
+            android:typeface="monospace"
+            android:text="ROT"
+            android:layout_weight="1"
+            android:textAlignment="textStart" />
+
+        <TextView
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:id="@+id/speed_trans"
+            android:background="@color/bg_hud"
+            android:typeface="monospace"
+            android:text="TRANS"
+            android:layout_weight="1"
+            android:textAlignment="textEnd" />
+
+    </LinearLayout>
+
 </LinearLayout>
