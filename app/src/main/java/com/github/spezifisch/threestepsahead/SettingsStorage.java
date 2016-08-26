@@ -38,7 +38,7 @@ public class SettingsStorage {
     private SharedPreferences sharedPreferences = null;
     private Context mContext = null;
     private Location cached_location = new Location("gps");
-    private static boolean cached_state = false;
+    private static boolean cached_state = true;
 
     /** Factories. */
     public static SettingsStorage getSettingsStorage() {

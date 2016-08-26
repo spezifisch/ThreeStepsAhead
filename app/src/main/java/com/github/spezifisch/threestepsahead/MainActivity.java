@@ -344,6 +344,11 @@ public class MainActivity extends AppCompatActivity
 
             Snackbar.make(findViewById(R.id.map), t, Snackbar.LENGTH_LONG)
                     .setAction("Action", null).show();
+
+            if (!state && (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)) {
+                Toast.makeText(MainActivity.this, "Disabling the Spoofer probably doesn't work under Android 6.0+, sorry." +
+                        "For now deactivate the module and restart to disable it.", Toast.LENGTH_LONG).show();
+            }
             return true;
         } else if (id == R.id.action_joystick) {
             if (hasOverlayPermissions()) {

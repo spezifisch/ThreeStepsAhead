@@ -36,6 +36,7 @@ public class IPC {
         // getter
         static final int GETTER = 200; // invalid
         static final int GET_TLE = 201;
+        static final int GET_POS = 202;
     }
 
     // TODO combine Client and SettingsClient?
@@ -341,6 +342,17 @@ public class IPC {
                         }
                         break;
 
+                    case msg.GET_POS:
+                        if (isMaster) {
+                            log("master responding to GET_POS");
+                            if (loc != null) {
+                                sendLocation(message.replyTo, loc);
+                            } else {
+                                log("loc not set yet");
+                            }
+                        }
+                        break;
+
                     default:
                         super.handleMessage(message);
                 }
@@ -373,6 +385,15 @@ public class IPC {
         }
 
         public boolean sendLocation(Location location) {
+            if (client == null) {
+                log("send: no remote set");
+                return false;
+            }
+
+            return sendLocation(client.getService(), location);
+        }
+
+        public boolean sendLocation(Messenger messenger, Location location) {
             Message message = Message.obtain(null, msg.SET_POS);
             Bundle bundle = new Bundle();
             bundle.putString("source", TAG);
@@ -387,7 +408,7 @@ public class IPC {
             if (DEBUG) {
                 log("sendLocation: " + location);
             }
-            return send(message);
+            return send(messenger, message);
         }
 
         public boolean sendState(boolean enabled) {
@@ -420,6 +441,22 @@ public class IPC {
             message.replyTo = client.getMessenger();
 
             log("requestTLE: ...");
+            return send(message);
+        }
+
+        public boolean requestLocation() {
+            if (!client.isConnected()) {
+                log("requestLocation: client not yet connected to master");
+                return false;
+            }
+
+            Message message = Message.obtain(null, msg.GET_POS);
+            Bundle bundle = new Bundle();
+            bundle.putString("source", TAG);
+            message.setData(bundle);
+            message.replyTo = client.getMessenger();
+
+            log("requestLocation: ...");
             return send(message);
         }
     }

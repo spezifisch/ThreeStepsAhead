@@ -37,6 +37,7 @@ public class GPSMan implements IXposedHookLoadPackage {
 
     private Location location;
     private long lastLocationTime = 0;
+    private boolean locationFromSettings = false;
     private Random rand;
     private boolean simulateNoise = true;
 
@@ -92,9 +93,10 @@ public class GPSMan implements IXposedHookLoadPackage {
             serviceClient.setInXposed(true);
             settings.setClient(serviceClient);
 
-            // init location
+            // init location from settings if possible
             if (location == null) {
                 updateLocation();
+                locationFromSettings = true;
             }
 
             // hooky!
@@ -116,6 +118,7 @@ public class GPSMan implements IXposedHookLoadPackage {
                 if (!serviceClient.connect() || !settings.isEnabled()) {
                     return;
                 }
+                checkInitialLocation();
 
                 Message message = (Message) param.args[0];
                 if (message.what == 1) { // TYPE_LOCATION_CHANGED
@@ -246,6 +249,7 @@ public class GPSMan implements IXposedHookLoadPackage {
                 if (!serviceClient.connect() || !settings.isEnabled()) {
                     return;
                 }
+                checkInitialLocation();
 
                 // real satellite data
                 GpsStatus gpsStatus = (GpsStatus) param.getResult();
@@ -335,6 +339,7 @@ public class GPSMan implements IXposedHookLoadPackage {
                 if (!serviceClient.connect() || !settings.isEnabled()) {
                     return;
                 }
+                checkInitialLocation();
 
                 if (param.getResult() != null) { // provider enabled + location returned
                     Location location = fakeLocation((Location)param.getResult());
@@ -378,5 +383,14 @@ public class GPSMan implements IXposedHookLoadPackage {
         loc.setBearing(location.getBearing());
 
         return loc;
+    }
+
+    private void checkInitialLocation() {
+        if (locationFromSettings) {
+            boolean ok = settings.requestLocation();
+            if (ok) {
+                locationFromSettings = false;
+            }
+        }
     }
 }
