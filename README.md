@@ -3,6 +3,8 @@
 This is an Android App which simulates your location, speed, bearing.
 Its future goal is to simulate the whole bunch of GPS/GNSS data that the Android API delivers accurately.
 
+![](screenshots/v0.5-pogo2.png)
+
 ## Main App
 
 The main app is currently just a location picker which also starts the joystick overlay service.

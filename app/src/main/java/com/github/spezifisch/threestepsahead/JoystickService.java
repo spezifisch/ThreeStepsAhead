@@ -11,6 +11,7 @@ import android.os.Looper;
 import android.os.Messenger;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.Display;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -134,14 +135,15 @@ public class JoystickService extends Service {
             updateVelocity(0.0, 0.0);
         }
 
-        public void updateVelocity(double speed_trans, double speed_rot) {
-            boolean rot_still = (Math.abs(speed_rot) < Math.toRadians(1.0));    // < 1.0 deg/s
-            boolean still = (Math.abs(speed_trans) < 0.1) && rot_still;         // also < 0.1 m/s, it's ok since noise makes it less artificial later
+        public void updateVelocity(double speed, double bearing) {
+            boolean still = (Math.abs(speed) < 0.1);    // < 0.1 m/s, it's ok since noise makes it less artificial later
 
             long now = System.currentTimeMillis();
             if (last_step == -1) {
                 last_step = now;
             }
+
+            // here are some leftovers from previous implementation. they are not wrong so let's leave them in
 
             // see how much time elapsed since last updateVelocity call
             long step_diff = now - last_step; // ms
@@ -160,40 +162,26 @@ public class JoystickService extends Service {
             // get previous location
             Location loc = settings.getLocation();
 
-            // time since last location update
-            long update_diff = now - loc.getTime(); // ms
-
-            // advance angle (north = 0)
-            double brng = Math.toRadians(loc.getBearing());
-            if (!rot_still) {
-                // speed_rot is CCW, bearing is CW, therefore *-1
-                brng += -1.0 * speed_rot * step_diff / 1000.0; // rad
-            }
-
             // advance walk
-            double dist = speed_trans * step_diff / 1000.0; // m
+            double dist = speed * step_diff / 1000.0; // m
             // max. distance per step
             dist = Math.max(-100.0, dist);
             dist = Math.min(100.0, dist);
 
-            // throttled update
-            boolean update_time = (update_diff > 20); // 50 Hz
-            if (update_time || still) {
-                // update location
-                loc = LocationHelper.displace(loc, dist, brng);
-                loc.setBearing((float) Math.toDegrees(brng));
-                loc.setSpeed((float) Math.abs(speed_trans)); // only pos. speed? maybe.
-                loc.setTime(now);
-                settings.sendLocation(loc);
+            // update location
+            loc = LocationHelper.displace(loc, dist, bearing);
+            loc.setBearing((float) Math.toDegrees(bearing));
+            loc.setSpeed((float) Math.abs(speed)); // only pos. speed? maybe.
+            loc.setTime(now);
+            settings.sendLocation(loc);
 
-                if (DEBUG) {
-                    Log.d(TAG, "tdiff " + step_diff + " yaw " + brng + " dist " + dist + " time " + now + " new location: " + loc);
-                }
-
-                // update textview
-                textSpeedTrans.setText(String.format(speedTransString, speed_trans));
-                textBearing.setText(String.format(speedBearingString, Math.toDegrees(brng)));
+            if (DEBUG) {
+                Log.d(TAG, "tdiff " + step_diff + " brng " + bearing + " dist " + dist + " time " + now + " new location: " + loc);
             }
+
+            // update textview
+            textSpeedTrans.setText(String.format(speedTransString, speed));
+            textBearing.setText(String.format(speedBearingString, Math.toDegrees(bearing)));
         }
     }
 
@@ -201,8 +189,37 @@ public class JoystickService extends Service {
     public class MyJsListener implements JoystickListener {
         protected RunningMan runman;
 
+        // current joystick state
+        boolean joystick_touched = false;
+        double joystick_phi = 0;
+        double joystick_r = 0;
+
+        // updater
+        private long UPDATER_PERIOD_ms;
+        private Handler handler = new Handler(Looper.getMainLooper());
+        Runnable updater = new Runnable() {
+            @Override
+            public void run() {
+                update();
+            }
+        };
+
         public MyJsListener() {
             runman = new RunningMan();
+
+            // use update rate that's in sync with screen refresh
+            Display display = ((WindowManager) getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
+            float refreshRate = display.getRefreshRate();
+
+            // updater period must be an integer, so search for a good one
+            if (Math.abs(refreshRate % 60.0f) < 0.1) {          // 60 Hz
+                UPDATER_PERIOD_ms = 50; // 20 Hz
+            } else if (Math.abs(refreshRate % 50.0f) < 0.1) {   // 50 Hz
+                UPDATER_PERIOD_ms = 20; // 50 Hz
+            } else {
+                UPDATER_PERIOD_ms = 20;
+            }
+            Log.d(TAG, "update rate " + refreshRate + " -> updater " + UPDATER_PERIOD_ms);
         }
 
         // current joystick state
@@ -230,16 +247,12 @@ public class JoystickService extends Service {
             joystick_r = 0;
 
             startUpdater();
-
-            Log.e(TAG, "onDown");
         }
 
         @Override
         public void onDrag(float degrees, float offset) {
             joystick_phi = Math.toRadians(degrees);
             joystick_r = offset;
-
-            Log.e(TAG, "onDrag");
         }
 
         @Override
@@ -249,8 +262,6 @@ public class JoystickService extends Service {
             joystick_touched = false;
 
             stopUpdater();
-
-            Log.e(TAG, "onUp");
         }
 
         public void startUpdater() {
@@ -266,18 +277,18 @@ public class JoystickService extends Service {
                 return;
             }
 
-            final double SPEED_ROT_MAX_RADS = Math.toRadians(180.0); // max. rotational velocity
-            final double SPEED_TRANS_MAX = 4.2;                      // 4.2 m/s (15 km/h) max. trans. velocity
+            // 4.2 m/s (15 km/h) max. trans. velocity
+            final double SPEED_TRANS_MAX = 4.2;
 
-            // convert polar to cartesian
-            double px = joystick_r * Math.cos(joystick_phi);
-            double py = joystick_r * Math.sin(joystick_phi);
+            // set velocity proportional to radius
+            double speed = joystick_r * SPEED_TRANS_MAX;
 
-            // set angular and translational velocity proportional to px, py;
-            double speed_rot = -px * SPEED_ROT_MAX_RADS;
-            double speed_trans = py * SPEED_TRANS_MAX;
+            // set angle according to joystick angle
+            // angle is defined CCW (north = 90°), bearing is CW (north = 0°)
+            double bearing = -joystick_phi + Math.toRadians(90);
 
-            runman.updateVelocity(speed_trans, speed_rot);
+            // update location
+            runman.updateVelocity(speed, bearing);
 
             // start again
             startUpdater();
