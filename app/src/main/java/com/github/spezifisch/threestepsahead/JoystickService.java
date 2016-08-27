@@ -222,21 +222,6 @@ public class JoystickService extends Service {
             Log.d(TAG, "update rate " + refreshRate + " -> updater " + UPDATER_PERIOD_ms);
         }
 
-        // current joystick state
-        boolean joystick_touched = false;
-        double joystick_phi = 0;
-        double joystick_r = 0;
-
-        // updater
-        private long UPDATER_PERIOD_ms = 20;
-        private Handler handler = new Handler(Looper.getMainLooper());
-        Runnable updater = new Runnable() {
-            @Override
-            public void run() {
-                update();
-            }
-        };
-
         @Override
         public void onDown() {
             // trigger a location update with zero speed
