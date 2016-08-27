@@ -5,7 +5,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.PixelFormat;
 import android.location.Location;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.Messenger;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -203,32 +205,82 @@ public class JoystickService extends Service {
             runman = new RunningMan();
         }
 
+        // current joystick state
+        boolean joystick_touched = false;
+        double joystick_phi = 0;
+        double joystick_r = 0;
+
+        // updater
+        private long UPDATER_PERIOD_ms = 20;
+        private Handler handler = new Handler(Looper.getMainLooper());
+        Runnable updater = new Runnable() {
+            @Override
+            public void run() {
+                update();
+            }
+        };
+
         @Override
         public void onDown() {
             // trigger a location update with zero speed
             runman.stop();
+
+            joystick_touched = true;
+            joystick_phi = 0;
+            joystick_r = 0;
+
+            startUpdater();
+
+            Log.e(TAG, "onDown");
         }
 
         @Override
         public void onDrag(float degrees, float offset) {
-            final double SPEED_ROT_MAX_RADS = Math.toRadians(180.0); // max. rotational velocity
-            final double SPEED_TRANS_MAX = 4.2;                      // 4.2 m/s (15 km/h) max. trans. velocity
+            joystick_phi = Math.toRadians(degrees);
+            joystick_r = offset;
 
-            // convert polar to cartesian
-            double px = offset * Math.cos(Math.toRadians(degrees));
-            double py = offset * Math.sin(Math.toRadians(degrees));
-
-            // set angular and translational velocity proportional to px, py;
-            double speed_rot = -px * SPEED_ROT_MAX_RADS;
-            double speed_trans = py * SPEED_TRANS_MAX;
-
-            runman.updateVelocity(speed_trans, speed_rot);
+            Log.e(TAG, "onDrag");
         }
 
         @Override
         public void onUp() {
             // stop movement
             runman.stop();
+            joystick_touched = false;
+
+            stopUpdater();
+
+            Log.e(TAG, "onUp");
+        }
+
+        public void startUpdater() {
+            handler.postDelayed(updater, UPDATER_PERIOD_ms);
+        }
+
+        public void stopUpdater() {
+            handler.removeCallbacks(updater);
+        }
+
+        public void update() {
+            if (!joystick_touched) {
+                return;
+            }
+
+            final double SPEED_ROT_MAX_RADS = Math.toRadians(180.0); // max. rotational velocity
+            final double SPEED_TRANS_MAX = 4.2;                      // 4.2 m/s (15 km/h) max. trans. velocity
+
+            // convert polar to cartesian
+            double px = joystick_r * Math.cos(joystick_phi);
+            double py = joystick_r * Math.sin(joystick_phi);
+
+            // set angular and translational velocity proportional to px, py;
+            double speed_rot = -px * SPEED_ROT_MAX_RADS;
+            double speed_trans = py * SPEED_TRANS_MAX;
+
+            runman.updateVelocity(speed_trans, speed_rot);
+
+            // start again
+            startUpdater();
         }
     }
 
