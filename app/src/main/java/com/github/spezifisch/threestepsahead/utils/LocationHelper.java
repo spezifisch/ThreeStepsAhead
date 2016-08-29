@@ -1,4 +1,4 @@
-package com.github.spezifisch.threestepsahead;
+package com.github.spezifisch.threestepsahead.utils;
 
 import android.location.Location;
 

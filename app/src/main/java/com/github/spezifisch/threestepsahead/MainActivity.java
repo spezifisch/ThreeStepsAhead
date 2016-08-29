@@ -148,7 +148,7 @@ public class MainActivity extends AppCompatActivity
                         Snackbar.LENGTH_LONG)
                         .setAction("Action", null).show();
 
-                // write to settings for GPSMan
+                // write to settings for GPS
                 settings.sendLocation(location);
 
                 updateMarker(location, false);

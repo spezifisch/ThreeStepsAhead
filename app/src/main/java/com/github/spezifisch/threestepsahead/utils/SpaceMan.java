@@ -1,8 +1,10 @@
-package com.github.spezifisch.threestepsahead;
+package com.github.spezifisch.threestepsahead.utils;
 
 import android.content.Context;
 import android.location.Location;
 import android.util.Log;
+
+import com.github.spezifisch.threestepsahead.R;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,7 +40,7 @@ public class SpaceMan {
         public float azimuth, elevation; // deg
         public int prn;
         public float snr;
-        boolean hasAlmanac, hasEphemeris, usedInFix;
+        public boolean hasAlmanac, hasEphemeris, usedInFix;
 
         @Override
         public String toString() {

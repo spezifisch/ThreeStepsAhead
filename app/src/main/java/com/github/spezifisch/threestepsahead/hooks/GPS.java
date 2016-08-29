@@ -1,45 +1,23 @@
-package com.github.spezifisch.threestepsahead;
+package com.github.spezifisch.threestepsahead.hooks;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Arrays;
 
 import android.location.GpsSatellite;
 import android.location.GpsStatus;
 import android.location.Location;
 import android.os.Message;
 
-import de.robv.android.xposed.IXposedHookLoadPackage;
+import com.github.spezifisch.threestepsahead.utils.SpaceMan;
+
+import de.robv.android.xposed.IXposedHookZygoteInit;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
-import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
+import de.robv.android.xposed.callbacks.XC_LoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
 
-import java.util.List;
-import java.util.Random;
-
-public class GPSMan implements IXposedHookLoadPackage {
-    // our app
-    private static final String THIS_APP = "com.github.spezifisch.threestepsahead";
+public class GPS {
     private static final boolean DEBUG = false;
-    private static boolean isHooked = false;
-
-    // whitelist for apps not to hook
-    private List<String> whitelist = Arrays.asList(
-            THIS_APP,
-            "com.github.spezifisch.sensorrawlogger"
-    );
-
-    // IPC to JoystickService
-    private SettingsStorage settingsStorage;
-    private IPC.SettingsClient settings;
-    private IPC.Client serviceClient;
-
-    private Location location;
-    private long lastLocationTime = 0;
-    private boolean locationFromSettings = false;
-    private Random rand;
-    private boolean simulateNoise = true;
 
     // GPS satellite calculator
     private SpaceMan spaceMan;
@@ -51,62 +29,20 @@ public class GPSMan implements IXposedHookLoadPackage {
     private boolean devGpsOnly = true;
     private double fixDropRate = 0.0043;             // fix=false probability [0;1], determined by SensorRawLogger data
 
-    private boolean inWhitelist(String s) {
-        return whitelist.contains(s);
+    private long lastLocationTime = 0;
+
+    public static void initZygote(final IXposedHookZygoteInit.StartupParam startupParam) throws Throwable {
+        // hook nothing globally
     }
 
-    @Override
-    public void handleLoadPackage(LoadPackageParam lpparam) throws Throwable {
-        if (lpparam.packageName.equals(THIS_APP)) {
-            XposedBridge.log(THIS_APP + " app loaded");
-
-            // for the main app to know xposed is running
-            Class<?> clazz = XposedHelpers.findClass(THIS_APP + ".SettingsStorage", lpparam.classLoader);
-            XposedHelpers.setStaticBooleanField(clazz, "xposed_loaded", true);
-        } else if (!inWhitelist(lpparam.packageName)) {
-            XposedBridge.log(lpparam.packageName + " app loaded -> initing");
-
-            if (isHooked) {
-                XposedBridge.log("already hooked!");
-                return;
-            }
-            isHooked = true;
-
-            if (!simulateNoise) {
-                XposedBridge.log("Noise deactivated. This is not a good idea.");
-            }
-
-            // init random
-            rand = new Random(System.currentTimeMillis() + 234213370);
-
-            // file settings
-            settingsStorage = SettingsStorage.getSettingsStorage();
-
-            // IPC instance
-            settings = new IPC.SettingsClient();
-            settings.setTagSuffix("GPSMan");
-            settings.setInXposed(true);
-            settings.setSettingsStorage(settingsStorage);
-
-            // pair Service and Client
-            serviceClient = new IPC.Client(settings);
-            serviceClient.setInXposed(true);
-            settings.setClient(serviceClient);
-
-            // init location from settings if possible
-            if (location == null) {
-                updateLocation();
-                locationFromSettings = true;
-            }
-
-            // hooky!
-            initHookListenerTransport(lpparam);
-            initHookGpsStatus(lpparam);
-            initHookGetLastKnownLocation(lpparam);
-        }
+    public void handleLoadPackage(final XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
+        // hook LocationManager of relevant packages
+        initHookListenerTransport(lpparam);
+        initHookGpsStatus(lpparam);
+        initHookGetLastKnownLocation(lpparam);
     }
 
-    void initHookListenerTransport(LoadPackageParam lpparam) {
+    void initHookListenerTransport(final XC_LoadPackage.LoadPackageParam lpparam) {
         class ListenerTransportHook extends XC_MethodHook {
             // this hooks an internal method of LocationManager, which calls OnLocationChanged and other callbacks
 
@@ -115,7 +51,7 @@ public class GPSMan implements IXposedHookLoadPackage {
                 if (param.hasThrowable()) {
                     return;
                 }
-                if (!serviceClient.connect() || !settings.isEnabled()) {
+                if (!Main.connectAndRun()) {
                     return;
                 }
                 checkInitialLocation();
@@ -130,9 +66,13 @@ public class GPSMan implements IXposedHookLoadPackage {
                         // update location noise
                         long locationTime = realLocation.getTime();
                         if (locationTime != lastLocationTime) {
-                            XposedBridge.log("ListenerTransport updating location " + locationTime + " last " + lastLocationTime);
+                            if (DEBUG) {
+                                XposedBridge.log(Main.Shared.packageName + " | " + locationTime +
+                                        " ListenerTransport updating location " + locationTime + " last " + lastLocationTime);
+                            }
+
                             // only when real GPS location was updated
-                            updateLocation();
+                            Main.updateLocation(locationTime);
                             lastLocationTime = locationTime;
                         }
 
@@ -141,7 +81,10 @@ public class GPSMan implements IXposedHookLoadPackage {
                         param.args[0] = message;
 
                         Location mojl = (Location) message.obj;
-                        XposedBridge.log("ListenerTransport Location faked(" + mojl.getTime() + ") " + mojl);
+                        if (DEBUG) {
+                            XposedBridge.log(Main.Shared.packageName + " | " + locationTime +
+                                    " ListenerTransport Location faked(" + mojl.getTime() + ") " + mojl);
+                        }
                     }
                 } else {
                     XposedBridge.log("ListenerTransport unhandled message(" + message.what + ") " + message.obj);
@@ -153,7 +96,7 @@ public class GPSMan implements IXposedHookLoadPackage {
                 "_handleMessage", Message.class, new ListenerTransportHook());
     }
 
-    void initHookGpsStatus(LoadPackageParam lpparam) {
+    void initHookGpsStatus(final XC_LoadPackage.LoadPackageParam lpparam) {
         class GpsStatusHook extends XC_MethodHook {
             // This hooks getGpsStatus function which returns GpsStatus.
             // We use the internal method setStatus to override the satellite info.
@@ -206,9 +149,9 @@ public class GPSMan implements IXposedHookLoadPackage {
                 }
 
                 // update TLE
-                if (serviceClient.isConnected() && spaceMan.getTLECount() == 0) {
-                    settings.requestTLE(); // async, getTLE probably takes a bit
-                    spaceMan.parseTLE(settings.getTLE());
+                if (Main.Shared.serviceClient.isConnected() && spaceMan.getTLECount() == 0) {
+                    Main.Shared.settings.requestTLE(); // async, getTLE probably takes a bit
+                    spaceMan.parseTLE(Main.Shared.settings.getTLE());
                 }
 
                 boolean firstTime = (spaceMan.getCalculatedLocation() == null);
@@ -220,7 +163,7 @@ public class GPSMan implements IXposedHookLoadPackage {
                 boolean bigDistance = false;
                 if (!firstTime) { // need old location for this
                     // just an arbitrary value
-                    bigDistance = (spaceMan.getCalculatedLocation().distanceTo(location) > 500.0 /* m */);
+                    bigDistance = (spaceMan.getCalculatedLocation().distanceTo(Main.State.location) > 500.0 /* m */);
                 }
 
                 // need to recalculate sats?
@@ -229,10 +172,10 @@ public class GPSMan implements IXposedHookLoadPackage {
 
                     // calculate satellite positions for current location and time
                     spaceMan.setNow();
-                    spaceMan.setGroundStationPosition(location);
+                    spaceMan.setGroundStationPosition(Main.State.location);
                     spaceMan.calculatePositions();
 
-                    if (DEBUG) {
+                    if (Main.Settings.DEBUG) {
                         spaceMan.dumpSatelliteInfo();
                         spaceMan.dumpGpsSatellites();
                     }
@@ -246,7 +189,7 @@ public class GPSMan implements IXposedHookLoadPackage {
                 if (param.hasThrowable()) {
                     return;
                 }
-                if (!serviceClient.connect() || !settings.isEnabled()) {
+                if (!Main.connectAndRun()) {
                     return;
                 }
                 checkInitialLocation();
@@ -280,8 +223,8 @@ public class GPSMan implements IXposedHookLoadPackage {
                         int i = 0;
                         for (SpaceMan.MyGpsSatellite gs: mygps) {
                             prns[i] = gs.prn;
-                            if (simulateNoise) {
-                                snrs[i] = Math.round(gs.snr + rand.nextGaussian()*1.2f); // variance is quite low
+                            if (Main.Settings.simulateNoise) {
+                                snrs[i] = Math.round(gs.snr + Main.State.rand.nextGaussian()*1.2f); // variance is quite low
                             } else {
                                 snrs[i] = gs.snr;
                             }
@@ -297,9 +240,9 @@ public class GPSMan implements IXposedHookLoadPackage {
                                 almanacMask |= prnShift;
                             }
                             if (gs.usedInFix && !devFixAlwaysFalse) {
-                                if (!simulateNoise) {
+                                if (!Main.Settings.simulateNoise) {
                                     usedInFixMask |= prnShift;
-                                } else if (rand.nextFloat() > fixDropRate) {
+                                } else if (Main.State.rand.nextFloat() > fixDropRate) {
                                     usedInFixMask |= prnShift;
                                 }
                             }
@@ -329,14 +272,14 @@ public class GPSMan implements IXposedHookLoadPackage {
                 "getGpsStatus", GpsStatus.class, new GpsStatusHook());
     }
 
-    void initHookGetLastKnownLocation(LoadPackageParam lpparam) {
+    void initHookGetLastKnownLocation(final XC_LoadPackage.LoadPackageParam lpparam) {
         class LastKnownLocationHook extends XC_MethodHook {
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                 if (param.hasThrowable()) {
                     return;
                 }
-                if (!serviceClient.connect() || !settings.isEnabled()) {
+                if (!Main.connectAndRun()) {
                     return;
                 }
                 checkInitialLocation();
@@ -354,43 +297,19 @@ public class GPSMan implements IXposedHookLoadPackage {
                 "getLastKnownLocation", String.class, new LastKnownLocationHook());
     }
 
-    private void updateLocation() {
-        // get current fake location
-        location = settings.getLocation();
-
-        // add gaussian noise with given sigma
-        if (simulateNoise) {
-            location.setBearing((float) (location.getBearing() + rand.nextGaussian() * 2.0) % 360.0f); // no rounding here
-            if (location.getSpeed() > 1.0) {
-                location.setSpeed((float) Math.abs(location.getSpeed() + rand.nextGaussian() * 0.2));
-            } else {
-                location.setSpeed((float) Math.abs(location.getSpeed() + rand.nextGaussian() * 0.05));
-            }
-            double distance = rand.nextGaussian() * Math.max(5.0, location.getAccuracy()) / 6.0;    // 5 m or accuracy, it's now really gaussian
-            double theta = Math.toRadians(rand.nextFloat() * 360.0);                                // direction of displacement should be uniformly distributed
-            location = LocationHelper.displace(location, distance, theta);
-        }
-    }
-
     private Location fakeLocation(Location loc) {
+        final Location l = Main.State.location;
+
         // overwrite faked parts of Location
-        loc.setLatitude(location.getLatitude());
-        loc.setLongitude(location.getLongitude());
+        loc.setLatitude(l.getLatitude());
+        loc.setLongitude(l.getLongitude());
         //location.setTime(System.currentTimeMillis());
-        //loc.setAltitude(location.getAltitude());
-        loc.setSpeed(location.getSpeed());
-        //loc.setAccuracy(location.getAccuracy());
-        loc.setBearing(location.getBearing());
+        //loc.setAltitude(l.getAltitude());
+        loc.setSpeed(l.getSpeed());
+        //loc.setAccuracy(l.getAccuracy());
+        loc.setBearing(l.getBearing());
 
         return loc;
     }
 
-    private void checkInitialLocation() {
-        if (locationFromSettings) {
-            boolean ok = settings.requestLocation();
-            if (ok) {
-                locationFromSettings = false;
-            }
-        }
-    }
 }

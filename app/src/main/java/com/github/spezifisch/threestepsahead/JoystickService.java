@@ -19,6 +19,8 @@ import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import com.github.spezifisch.threestepsahead.utils.LocationHelper;
+import com.github.spezifisch.threestepsahead.utils.SpaceMan;
 import com.jmedeisis.bugstick.Joystick;
 import com.jmedeisis.bugstick.JoystickListener;
 
@@ -212,9 +214,9 @@ public class JoystickService extends Service {
             float refreshRate = display.getRefreshRate();
 
             // updater period must be an integer, so search for a good one
-            if (Math.abs(refreshRate % 60.0f) < 0.1) {          // 60 Hz
+            if ((refreshRate % 60.0f) < 0.1) {          // 60 Hz
                 UPDATER_PERIOD_ms = 50; // 20 Hz
-            } else if (Math.abs(refreshRate % 50.0f) < 0.1) {   // 50 Hz
+            } else if ((refreshRate % 50.0f) < 0.1) {   // 50 Hz
                 UPDATER_PERIOD_ms = 20; // 50 Hz
             } else {
                 UPDATER_PERIOD_ms = 20;
