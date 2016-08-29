@@ -54,7 +54,6 @@ public class GPS {
                 if (!Main.connectAndRun()) {
                     return;
                 }
-                checkInitialLocation();
 
                 Message message = (Message) param.args[0];
                 if (message.what == 1) { // TYPE_LOCATION_CHANGED
@@ -192,7 +191,6 @@ public class GPS {
                 if (!Main.connectAndRun()) {
                     return;
                 }
-                checkInitialLocation();
 
                 // real satellite data
                 GpsStatus gpsStatus = (GpsStatus) param.getResult();
@@ -282,7 +280,6 @@ public class GPS {
                 if (!Main.connectAndRun()) {
                     return;
                 }
-                checkInitialLocation();
 
                 if (param.getResult() != null) { // provider enabled + location returned
                     Location location = fakeLocation((Location)param.getResult());
