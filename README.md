@@ -1,5 +1,7 @@
 # Three Steps Ahead
 
+[![Build Status](https://travis-ci.org/spezifisch/ThreeStepsAhead.svg?branch=master)](https://travis-ci.org/spezifisch/ThreeStepsAhead)
+
 This is an Android App which simulates your location, speed, bearing.
 Its future goal is to simulate the whole bunch of GPS/GNSS data that the Android API delivers accurately.
 
