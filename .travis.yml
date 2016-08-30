@@ -20,7 +20,7 @@ env:
     - ANDROID_API_LEVEL=24
     - ANDROID_BUILD_TOOLS_VERSION=24.0.1
     - ADB_INSTALL_TIMEOUT=20 # minutes (2 minutes by default)
-    - APK_FILE="ThreeStepsAhead-$TRAVIS_TAG-test-unsigned.apk"
+    - APK_FILE="ThreeStepsAhead-$TRAVIS_TAG.apk"
 
   matrix:
     - EMULATOR_API_LEVEL=19 ANDROID_ABI=armeabi-v7a RELEASE=0
@@ -38,7 +38,6 @@ android:
     # Latest artifacts in local repository
     - extra-android-m2repository
     # Specify at least one system image
-    - sys-img-armeabi-v7a-google_apis-$ANDROID_API_LEVEL
     - sys-img-armeabi-v7a-google_apis-$EMULATOR_API_LEVEL
 
 before_script:
@@ -53,7 +52,7 @@ script:
   - ./gradlew assembleRelease -PdisablePreDex --stacktrace
 
 before_deploy:
-  - cd app/build/outputs/apk; mv app-release-unsigned.apk "$APK_FILE"; ls -la; md5sum "$APK_FILE" | tee "$APK_FILE".md5; sha1sum "$APK_FILE" | tee "$APK_FILE".sha1; cd -
+  - cd app/build/outputs/apk; mv app-release.apk "$APK_FILE"; ls -la; md5sum "$APK_FILE" | tee "$APK_FILE".md5; sha1sum "$APK_FILE" | tee "$APK_FILE".sha1; cd -
 
 deploy:
   provider: releases
