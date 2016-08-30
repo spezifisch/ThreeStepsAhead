@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">Three Steps Ahead</string>
-    <string name="app_version">v0.4</string>
+    <string name="app_version">v0.5</string>
 
     <string name="service_started">Service Running</string>
     <string name="service_stopped">Service Stopped</string>

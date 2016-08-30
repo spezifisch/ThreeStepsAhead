@@ -16,11 +16,16 @@ cache:
 
 env:
   global:
+    - GRADLE_OPTS="-Xmx2048m -Xms512m"
     - ANDROID_API_LEVEL=24
-    - EMULATOR_API_LEVEL=21
     - ANDROID_BUILD_TOOLS_VERSION=24.0.1
-    - ANDROID_ABI=armeabi-v7a
     - ADB_INSTALL_TIMEOUT=20 # minutes (2 minutes by default)
+    - APK_FILE="ThreeStepsAhead-$TRAVIS_TAG-test-unsigned.apk"
+
+  matrix:
+    - EMULATOR_API_LEVEL=19 ANDROID_ABI=armeabi-v7a RELEASE=0
+    - EMULATOR_API_LEVEL=21 ANDROID_ABI=armeabi-v7a RELEASE=1
+#    - EMULATOR_API_LEVEL=23 ANDROID_ABI=google_apis/armeabi-v7a RELEASE=0
 
 android:
   components:
@@ -43,5 +48,24 @@ before_script:
   - android-wait-for-emulator
 
 script:
-  - ./gradlew app:connectedAndroidTest -PdisablePreDex
+  - ./gradlew app:connectedAndroidTest -PdisablePreDex --stacktrace
+
+  - ./gradlew assembleRelease -PdisablePreDex --stacktrace
+
+before_deploy:
+  - cd app/build/outputs/apk; mv app-release-unsigned.apk "$APK_FILE"; ls -la; md5sum "$APK_FILE" | tee "$APK_FILE".md5; sha1sum "$APK_FILE" | tee "$APK_FILE".sha1; cd -
+
+deploy:
+  provider: releases
+  api_key:
+    secure: PE9czhpsuSxNmEd4Ca1s+2E8MUBy61nfCtJ+//IHNf2IWGxXL0KQvY1yg74lOwFJTgjMxKhTlL0nskTjmYKdENeDhMux12unK9mykHm+y0BsiJg7dNCGRkS6c5ZXuV0z+iZ3rVX0D+3EjQ+ObfuF8kOM89tgrFCIgjSURsE05hdpwpjd/pNbfBnbMHdqtsLBhXZ0/93SrrTv2bLOcaJiDG5/E8Ru34TfGPkmrgV+xAe9+1DL0dEYYewc+rhucrvYn2xNLP/8sby2rjSE76K5SDv/HDoWNxd1YE9xEhC3HgEYdXULLxeAkwvNkmIOQtfThEGmYZ79g5zwQ044y6d5mb7ypkaheyHtke3FWueXcz8SMd/n21yk+mr7xPrvN1dQCn2BIdKouszpK3+8CHY9Pk0CkK91rasrfCqWWCb97tRUmceJI4adXob/QsYInt5yqtUdQUh59ibTF23PCcv2Xw3xlNR62ItNYLxQHwfJj8R60hbK7xUYfGOehBVDu6UvEjZVDh9ctl9JZlY9saoAryIT0hGF0pRpFmEJXbDKtgzImu2kR2EJRK2tZwVxh363YmMX3AOzLzXMQxvWI0LOeXnNAMJOoqG8b24++dIiIFdqeUfNaEj2TTuoTv276QIAO0nQjyRmHwYAN53pr/7Bxh1o7Nm4BkhOctEPqGBOMhA=
+  file:
+    - app/build/outputs/apk/$APK_FILE
+    - app/build/outputs/apk/$APK_FILE.md5
+    - app/build/outputs/apk/$APK_FILE.sha1
+  skip_cleanup: true
+  on:
+    repo: spezifisch/ThreeStepsAhead
+    tags: true
+    condition: $RELEASE = 1
 
