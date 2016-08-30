@@ -1,13 +1,24 @@
-# Three Steps Ahead
+# Three Steps Ahead [![Build Status](https://travis-ci.org/spezifisch/ThreeStepsAhead.svg?branch=master)](https://travis-ci.org/spezifisch/ThreeStepsAhead)
 
-[![Build Status](https://travis-ci.org/spezifisch/ThreeStepsAhead.svg?branch=master)](https://travis-ci.org/spezifisch/ThreeStepsAhead)
+This is an Android App which simulates your location.
+Its goal is to simulate the whole bunch of GPS/GNSS and sensor data realistically.
 
-This is an Android App which simulates your location, speed, bearing.
-Its future goal is to simulate the whole bunch of GPS/GNSS data that the Android API delivers accurately.
+## Releases
 
-![](screenshots/v0.5-pogo2.png)
+For now, grab the most recent test release from [Github's Release page](https://github.com/spezifisch/ThreeStepsAhead/releases).
 
-## Main App
+## Features
+
+- simulate latitude, longitude, bearing, speed
+- calculate [GPS satellite](https://developer.android.com/reference/android/location/GpsSatellite.html) positions for simulated location
+- use altitude (this is not ideal), accuracy, TTF, location update timings from real GPS receiver
+- add noise to appear more realistic
+- choose coarse location in map, move around using joystick
+- display floating joystick overlay above other apps
+- only hook selected apps (currently a static list: SatStat for testing and PoGo)
+- WIP for next release: modify (accelerometer, gyroscope, magnetometer, etc.) sensor data to match simulated movement
+
+## Screenshots
 
 The main app is currently just a location picker which also starts the joystick overlay service.
 
@@ -26,23 +37,6 @@ The vertical axis determines your translational velocity (default: up to 4.2 m/s
 Speed and bearing are simulated according to your joystick.
 
 ![](screenshots/v0.3-satstat.png)
-
-## Features
-
-- simulate latitude, longitude, bearing, speed
-- calculate [GPS satellite](https://developer.android.com/reference/android/location/GpsSatellite.html) positions and status for simulated location
-- use altitude, accuracy, TTF from real GPS receiver
-- add noise to appear more realistic
-- choose coarse location in map, move around using joystick
-- display floating joystick overlay above other apps
-- location updates via IPC (no abuse of SharedPreferences)
-
-## TODO
-
-- simulate sensor data
-- further research to mimic GPS receiver noise ([SensorRawLogger](https://github.com/spezifisch/SensorRawLogger))
-- online update of TLE data
-- choose hooked Apps
 
 ## Build
 
@@ -70,3 +64,4 @@ Speed and bearing are simulated according to your joystick.
 - App icon made by [Roundicons Freebies](http://www.flaticon.com/authors/roundicons-freebies) ([CC-BY](https://creativecommons.org/licenses/by/3.0/), background added)
 - Marker icon made by [freepik](http://www.flaticon.com/authors/freepik) from www.flaticon.com
 - Zoom icons from [SatStat](https://github.com/mvglasow/satstat) by mvglasow
+
