@@ -28,7 +28,8 @@ public class Main implements IXposedHookLoadPackage, IXposedHookZygoteInit {
         static final List<String> hookedApps = Arrays.asList(
                 "com.google.android.gms",
                 "com.vonglasow.michael.satstat",
-                "com.nianticlabs.pokemongo"
+                "com.nianticlabs.pokemongo",
+                "com.google.android.gms.location.sample.locationupdates"
         );
     }
 

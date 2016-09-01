@@ -1,13 +1,17 @@
 package com.github.spezifisch.threestepsahead.hooks;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 import android.location.GpsSatellite;
 import android.location.GpsStatus;
 import android.location.Location;
 import android.os.Message;
 
+import com.github.spezifisch.threestepsahead.utils.Helper;
 import com.github.spezifisch.threestepsahead.utils.SpaceMan;
 
 import de.robv.android.xposed.IXposedHookZygoteInit;
@@ -40,6 +44,7 @@ public class GPS {
         initHookListenerTransport(lpparam);
         initHookGpsStatus(lpparam);
         initHookGetLastKnownLocation(lpparam);
+        initHookFusedLocation(lpparam);
     }
 
     void initHookListenerTransport(final XC_LoadPackage.LoadPackageParam lpparam) {
@@ -80,10 +85,10 @@ public class GPS {
                         param.args[0] = message;
 
                         Location mojl = (Location) message.obj;
-                        if (DEBUG) {
+                        //if (DEBUG) {
                             XposedBridge.log(Main.Shared.packageName + " | " + locationTime +
                                     " ListenerTransport Location faked(" + mojl.getTime() + ") " + mojl);
-                        }
+                        //}
                     }
                 } else {
                     XposedBridge.log("ListenerTransport unhandled message(" + message.what + ") " + message.obj);
@@ -294,17 +299,176 @@ public class GPS {
                 "getLastKnownLocation", String.class, new LastKnownLocationHook());
     }
 
+    void initHookFusedLocation(final XC_LoadPackage.LoadPackageParam lpparam) {
+        // hook for com.google.android.gms.location.LocationListener
+        class onLocationChangedFusedHook extends XC_MethodHook {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                if (param.hasThrowable()) {
+                    return;
+                }
+                if (!Main.connectAndRun()) {
+                    return;
+                }
+
+                if (param.args[0] != null) {
+                    Location location = fakeLocation((Location)param.args[0]);
+                    param.args[0] = location;
+
+                    XposedBridge.log("onLocationChangedFusedHook Location faked: " + location);
+                }
+            }
+        }
+
+        // hook for com.google.android.gms.location.LocationCallback
+        class onLocationResultFusedHook extends XC_MethodHook {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                if (param.hasThrowable()) {
+                    return;
+                }
+                if (!Main.connectAndRun()) {
+                    return;
+                }
+
+                XposedBridge.log("onLocationResultFusedHook called");
+
+                if (param.args[0] != null) {
+                    Object locationResult = param.args[0];
+
+                    // get real location list from members of LocationResult
+                    List<Location> llObject = new ArrayList<>();
+                    Field locationList = XposedHelpers.findFirstFieldByExactType(locationResult.getClass(), llObject.getClass());
+                    locationList.setAccessible(true);
+                    locationList.get(llObject);
+
+                    XposedBridge.log("onLocationResultFusedHook real list: " + llObject);
+
+                    if (llObject.size() > 0) {
+                        // get data from newest location
+                        Location location = fakeLocation(llObject.get(llObject.size() - 1));
+
+                        // build own list
+                        List<Location> llMy = new ArrayList<>();
+                        llMy.add(location);
+
+                        // overwrite original list
+                        locationList.set(llObject, llMy);
+
+                        XposedBridge.log("onLocationResultFusedHook real list replaced");
+                    } else {
+                        XposedBridge.log("onLocationResultFusedHook real list was empty");
+                    }
+                }
+            }
+        }
+
+        // hook for com.google.android.gms.location.LocationServices
+        class requestLocationUpdatesFusedHook extends XC_MethodHook {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                if (param.hasThrowable()) {
+                    return;
+                }
+                if (!Main.connectAndRun()) {
+                    return;
+                }
+
+                // parse args ... maybe fake them later
+                for (Object arg: param.args) {
+                    if (arg == null) {
+                        continue;
+                    }
+
+                    String cname = arg.getClass().getName();
+                    XposedBridge.log("FusedLocationApi.requestLocationUpdates arg: " + cname + " -> " + arg);
+
+                    if (!cname.startsWith("com.google.android.gms.internal") &&
+                            !cname.equals("com.google.android.gms.location.LocationRequest") &&
+                            !cname.equals("android.os.Looper")) {
+                        hookLocationListener(arg.getClass());
+                        hookLocationCallback(arg.getClass());
+                    }
+                }
+            }
+
+            void hookLocationListener(Class<?> ll) {
+                Set<Unhook> unhooks = XposedBridge.hookAllMethods(ll, "onLocationChanged", new onLocationChangedFusedHook());
+                if (unhooks.size() > 0) {
+                    XposedBridge.log("hooked onLocationChanged");
+                }
+            }
+
+            void hookLocationCallback(Class<?> lc) {
+                Set<Unhook> unhooks = XposedBridge.hookAllMethods(lc, "onLocationResult", new onLocationResultFusedHook());
+                if (unhooks.size() > 0) {
+                    XposedBridge.log("hooked onLocationResult");
+                }
+            }
+        }
+
+        // https://developers.google.com/android/reference/com/google/android/gms/location/FusedLocationProviderApi.html
+        // getLastLocation(com.google.android.gms.common.api.GoogleApiClient)
+        class getLastLocationFusedHook extends XC_MethodHook {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                if (param.hasThrowable()) {
+                    return;
+                }
+                if (!Main.connectAndRun()) {
+                    return;
+                }
+
+                if (param.getResult() != null) {
+                    Location location = fakeLocation((Location)param.getResult());
+                    param.setResult(location);
+
+                    XposedBridge.log("getLastLocationFusedHook Location faked: " + location);
+                }
+            }
+        }
+
+        Class<?> clazz = XposedHelpers.findClassIfExists(
+                "com.google.android.gms.location.LocationServices", lpparam.classLoader);
+        if (clazz != null) {
+            XposedBridge.log("LocationServices found, hooking FusedLocationApi");
+
+            // get FusedLocationProviderApi implementation
+            Object fla = XposedHelpers.getStaticObjectField(clazz, "FusedLocationApi");
+
+            // hook all versions of requestLocationUpdates
+            XposedBridge.hookAllMethods(fla.getClass(), "requestLocationUpdates", new requestLocationUpdatesFusedHook());
+
+            // hook getLastLocation
+            XposedBridge.hookAllMethods(fla.getClass(), "getLastLocation", new getLastLocationFusedHook());
+        } else {
+            XposedBridge.log("LocationServices not found, don't need to hook FusedLocationApi");
+        }
+    }
+
     private Location fakeLocation(Location loc) {
         final Location l = Main.State.location;
 
         // overwrite faked parts of Location
         loc.setLatitude(l.getLatitude());
         loc.setLongitude(l.getLongitude());
+
+        // optional fields...
         //location.setTime(System.currentTimeMillis());
-        //loc.setAltitude(l.getAltitude());
-        loc.setSpeed(l.getSpeed());
-        //loc.setAccuracy(l.getAccuracy());
-        loc.setBearing(l.getBearing());
+        if (loc.hasAltitude()) {
+            // not faked yet
+            //loc.setAltitude(l.getAltitude());
+        }
+        if (loc.hasSpeed()) {
+            loc.setSpeed(l.getSpeed());
+        }
+        if (loc.hasAccuracy()) {
+            // not faked yet
+            //loc.setAccuracy(l.getAccuracy());
+        }
+        if (loc.hasBearing()) {
+            loc.setBearing(l.getBearing());
+        }
 
         return loc;
     }

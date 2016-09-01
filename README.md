@@ -3,9 +3,11 @@
 This is an Android App which simulates your location.
 Its goal is to simulate the whole bunch of GPS/GNSS and sensor data realistically.
 
-## Releases
+## Download
 
-For now, grab the most recent test release from [Github's Release page](https://github.com/spezifisch/ThreeStepsAhead/releases).
+Grab the most recent release from [Github's Release page](https://github.com/spezifisch/ThreeStepsAhead/releases).
+
+Follow install instructions below!
 
 ## Features
 
@@ -14,7 +16,7 @@ For now, grab the most recent test release from [Github's Release page](https://
 - use altitude (this is not ideal), accuracy, TTF, location update timings from real GPS receiver
 - add noise to appear more realistic
 - choose coarse location in map, move around using joystick
-- display floating joystick overlay above other apps
+- display joystick overlay above other apps
 - only hook selected apps (currently a static list: SatStat for testing and PoGo)
 - WIP for next release: modify (accelerometer, gyroscope, magnetometer, etc.) sensor data to match simulated movement
 
@@ -49,10 +51,24 @@ Speed and bearing are simulated according to your joystick.
 - Install ThreeStepsAhead
 - Activate it in Xposed settings
 - (Soft) Reboot
+- start ThreeStepsAhead and pick a location before starting PoGo
+
+Some hints:
+
+- we rely on a real GPS fix to get realistic accuracy, altitude, and timings.
+- GPS only location mode recommended
+- disable fused location provider in case of problems
+- make sure to disable Mock Locations
 
 ## Compatibility
 
-- Android 4.4+
+- Android 4.4+, tested with 4.4 - 6.0
+
+## Permissions
+
+- Network/State: needed for map service
+- Storage: needed for map tile caching
+- Draw Overlays/AlertWindow: needed to draw joystick overlay over other apps
 
 ## Credits
 
@@ -64,4 +80,3 @@ Speed and bearing are simulated according to your joystick.
 - App icon made by [Roundicons Freebies](http://www.flaticon.com/authors/roundicons-freebies) ([CC-BY](https://creativecommons.org/licenses/by/3.0/), background added)
 - Marker icon made by [freepik](http://www.flaticon.com/authors/freepik) from www.flaticon.com
 - Zoom icons from [SatStat](https://github.com/mvglasow/satstat) by mvglasow
-

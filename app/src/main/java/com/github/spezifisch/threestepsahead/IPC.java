@@ -367,7 +367,8 @@ public class IPC {
             try {
                 m.send(message);
             } catch (RemoteException e) {
-                log("send " + e);
+                log("IPC send exception");
+                e.printStackTrace();
                 return false;
             }
 
